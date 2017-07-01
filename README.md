@@ -67,15 +67,15 @@ button.setOnClickListener(new View.OnClickListener() {
 
 ## Availables APIs:
 
-* Crisp.getChat().setPrimaryColor("#9012FE");
-* Crisp.getChat().setPrimaryDarkColor("#9012FE");
-* Crisp.getChat().open(ctx);
-* Crisp.getChat().close();
-* Crisp.getUser().setEmail("john@doe.com");
-* Crisp.getUser().setNickname("John");
-* Crisp.getUser().setPhone("+44164642242");
-* Crisp.getUser().setAvatar("https://pbs.twimg.com/profile_images/782474226020200448/zDo-gAo0_400x400.jpg");
-* Crisp.getUser().getEmail();
-* Crisp.getUser().getNickname();
-* Crisp.getUser().getPhone();
-* Crisp.getUser().getAvatar();
+* `Crisp.getChat().setPrimaryColor("#9012FE");`
+* `Crisp.getChat().setPrimaryDarkColor("#9012FE");`
+* `Crisp.getChat().open(ctx);`
+* `Crisp.getChat().close();`
+* `Crisp.getUser().setEmail("john@doe.com");`
+* `Crisp.getUser().setNickname("John");`
+* `Crisp.getUser().setPhone("+44164642242");`
+* `Crisp.getUser().setAvatar("https://pbs.twimg.com/profile_images/782474226020200448/zDo-gAo0_400x400.jpg");`
+* `Crisp.getUser().getEmail();`
+* `Crisp.getUser().getNickname();`
+* `Crisp.getUser().getPhone();`
+* `Crisp.getUser().getAvatar("https://pbs.twimg.com/profile_images/782474226020200448/zDo-gAo0_400x400.jpg");`
