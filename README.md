@@ -1,6 +1,13 @@
+![Crisp](https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/master/docs/img/logo_blue.png)
+
+Chat with app users, integrate your favorite tools, and deliver a great customer experience.
+
 # Crisp Android SDK
 
-Integrate the Crisp Livechat in a native Android app.
+![Crisp screenshot](https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/master/docs/img/crisp_screenshot.png)
+
+ [ ![Download](https://api.bintray.com/packages/crispim/crisp-maven/crisp-sdk-android/images/download.svg) ](https://bintray.com/crispim/crisp-maven/crisp-sdk-android/_latestVersion)
+[![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
 
 ## Prerequisites
 
@@ -71,6 +78,7 @@ button.setOnClickListener(new View.OnClickListener() {
 * `Crisp.getChat().setPrimaryDarkColor("#9012FE");`
 * `Crisp.getChat().open(ctx);`
 * `Crisp.getChat().close();`
+* `Crisp.getSession().reset();`
 * `Crisp.getUser().setEmail("john@doe.com");`
 * `Crisp.getUser().setNickname("John");`
 * `Crisp.getUser().setPhone("+44164642242");`
