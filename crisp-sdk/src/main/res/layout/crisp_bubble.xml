@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+
+    <FrameLayout
+        android:id="@+id/crisp_bubble_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/crisp_reply">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:paddingBottom="10dp"
+                android:paddingLeft="10dp"
+                android:paddingTop="10dp"
+                android:text="Invalid Website ID"
+                android:textColor="#d80707"
+                android:textStyle="bold" />
+        </FrameLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/crisp_bubble_reply"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@id/crisp_bubble_error"
+        android:layout_below="@+id/crisp_bubble_error">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/crisp_reply">
+
+            <TextView
+                android:id="@+id/crisp_bubble_reply_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingBottom="10dp"
+                android:paddingLeft="10dp"
+                android:paddingTop="10dp"
+                android:text="@string/minimized_tooltip_unread_plural" />
+        </FrameLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@id/crisp_bubble_reply"
+        android:layout_below="@+id/crisp_bubble_reply">
+
+        <FrameLayout
+            android:id="@+id/crisp_bubble_layout"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/crisp_bubble_background"
+            android:foreground="@drawable/crisp_bubble"
+            android:src="@drawable/crisp_bubble_icon">
+
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                android:src="@drawable/crisp_bubble_icon" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/crisp_bubble_notification"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginLeft="42dp"
+            android:layout_marginTop="42dp"
+            android:background="@drawable/crisp_bubble_notification">
+
+            <TextView
+                android:id="@+id/crisp_bubble_notification_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="1"
+                android:textColor="@color/crisp_white"
+                android:textStyle="bold" />
+        </FrameLayout>
+    </FrameLayout>
+</RelativeLayout>

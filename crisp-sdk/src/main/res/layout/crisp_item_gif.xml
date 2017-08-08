@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="5dp">
+
+    <android.support.v7.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        card_view:cardCornerRadius="10dp"
+        card_view:cardElevation="0dp"
+        card_view:cardMaxElevation="0dp"
+        card_view:cardPreventCornerOverlap="false"
+        card_view:cardUseCompatPadding="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ProgressBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/crisp_dark_grey"
+                android:indeterminateTintMode="src_in" />
+
+            <ImageView
+                android:id="@+id/crisp_image_gif"
+                android:layout_width="match_parent"
+                android:layout_height="70dp" />
+
+        </FrameLayout>
+    </android.support.v7.widget.CardView>
+</FrameLayout>

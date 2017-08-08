@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/crisp-sdk/crisp-sdk.iml" filepath="$PROJECT_DIR$/crisp-sdk/crisp-sdk.iml" />
+      <module fileurl="file://$PROJECT_DIR$/crisp-sdk-android2.iml" filepath="$PROJECT_DIR$/crisp-sdk-android2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/example/example.iml" filepath="$PROJECT_DIR$/example/example.iml" />
+    </modules>
+  </component>
+</project>

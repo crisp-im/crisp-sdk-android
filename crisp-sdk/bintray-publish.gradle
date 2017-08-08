@@ -1,0 +1,70 @@
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+
+// Maven group id and version for the artifact
+group = LIB_GROUP_ID
+version = LIB_VERSION
+
+install {
+    repositories.mavenInstaller {
+        pom.project {
+            name LIB_NAME
+            description LIB_DESCRIPTION
+            packaging POM_PACKAGING
+            groupId LIB_GROUP_ID
+            version LIB_VERSION
+            url LIB_URL
+            licenses {
+                license {
+                    name POM_LICENCE_NAME
+                    url POM_LICENCE_URL
+                }
+            }
+            developers {
+                developer {
+                    id POM_DEVELOPER_ID
+                    name POM_DEVELOPER_NAME
+                }
+            }
+            scm {
+                connection POM_SCM_CONNECTION
+                developerConnection POM_SCM_DEV_CONNECTION
+                url POM_SCM_URL
+
+            }
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+
+bintray {
+    user = POM_DEVELOPER_ID
+    key = properties.getProperty("bintray.apikey")
+
+    configurations = ['archives']
+    pkg {
+        repo = 'crisp-maven'
+        name = BIN_TRAY_NAME
+        desc = LIB_DESCRIPTION
+        licenses = ['Apache-2.0']
+        websiteUrl = LIB_URL
+        vcsUrl = LIB_VCS_URL
+        publish = true
+        version {
+            name = LIB_VERSION
+            desc = LIB_DESCRIPTION
+            released  = new Date()
+        }
+    }
+}

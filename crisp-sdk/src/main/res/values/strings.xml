@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- "_meta" -->
+    <string name="locale_name">English</string>
+
+    <!-- "_meta" -->
+    <string name="locale_code">en</string>
+
+    <!-- "_meta" -->
+    <string name="locale_direction">ltr</string>
+
+    <string name="date_hour_singular">An hour ago</string>
+
+    <!-- "_strings"."date" -->
+    <string name="date_hour_plural">%1s hours ago</string>
+
+    <!-- "_strings"."date" -->
+    <string name="date_minute_singular">A minute ago</string>
+
+    <!-- "_strings"."date" -->
+    <string name="date_minute_plural">%1s minutes ago</string>
+
+    <!-- "_strings"."date" -->
+    <string name="date_second">A few seconds ago</string>
+
+    <!-- "_strings"."date" -->
+    <string name="date_now">Just now</string>
+
+    <!-- "_strings"."duration" -->
+    <string name="duration_days">A few days</string>
+
+    <!-- "_strings"."duration" -->
+    <!-- Fuzzy -->
+    <string name="duration_hour_singular">An hour</string>
+
+    <!-- "_strings"."duration" -->
+    <string name="duration_hour_plural">%1s hours</string>
+
+    <!-- "_strings"."duration" -->
+    <!-- Fuzzy -->
+    <string name="duration_minute_singular">A minute</string>
+
+    <!-- "_strings"."duration" -->
+    <string name="duration_minute_plural">%1s minutes</string>
+
+    <!-- "_strings"."duration" -->
+    <!-- Fuzzy -->
+    <string name="duration_second">A few seconds</string>
+
+    <!-- "_strings"."duration" -->
+    <string name="duration_now">Instantly</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_monday">Monday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_tuesday">Tuesday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_wednesday">Wednesday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_thursday">Thursday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_friday">Friday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_saturday">Saturday</string>
+
+    <!-- "_strings"."days" -->
+    <string name="days_sunday">Sunday</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_january">January</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_february">February</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_march">March</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_april">April</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_may">May</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_june">June</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_july">July</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_august">August</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_september">September</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_october">October</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_november">November</string>
+
+    <!-- "_strings"."months" -->
+    <string name="months_december">December</string>
+
+    <!-- "_strings"."theme_text" -->
+    <string name="theme_text_default_chat">Questions? Chat with us!</string>
+
+    <!-- "_strings"."theme_text" -->
+    <string name="theme_text_1_chat">Questions? Chat with me!</string>
+
+    <!-- "_strings"."theme_text" -->
+    <!-- Fuzzy -->
+    <string name="theme_text_2_chat">Ask us your questions</string>
+
+    <!-- "_strings"."theme_text" -->
+    <!-- Fuzzy -->
+    <string name="theme_text_3_chat">Ask me your questions</string>
+
+    <!-- "_strings"."theme_text" -->
+    <!-- Fuzzy -->
+    <string name="theme_text_4_chat">Chat with support</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_default_chat">How can we help with %1s?</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_1_chat">Hey, want to chat with us?</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_2_chat">Anything you want to ask?</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_3_chat">Hello, ask us any question about %1s.</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_4_chat">Hello! How can I help you? :)</string>
+
+    <!-- "_strings"."theme_welcome" -->
+    <string name="theme_welcome_5_chat">Any question about %1s?</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="unauthorized_pane">Invalid chatbox code</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="tooltip_entice_close">Close</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="tooltip_entice_title">%1s Team</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="tooltip_entice_status_online">Online</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="tooltip_entice_explain_online">Ask us anything you want to know. Our team is online and will reply.</string>
+
+    <!-- "_strings"."minimized" -->
+    <string name="tooltip_entice_form_compose">Compose your message here...</string>
+
+    <!-- "_strings"."chat" -->
+    <!-- Fuzzy -->
+    <string name="minimized_tooltip_unread_singular">Open to reply to message</string>
+
+    <!-- "_strings"."chat" -->
+    <!-- Fuzzy -->
+    <string name="minimized_tooltip_unread_plural">Open to reply to messages</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="minimized_tooltip_message_from">Message from</string>
+
+    <!-- "_strings"."chat" -->
+    <!-- Fuzzy -->
+    <string name="chat_header_ongoing_from">from</string>
+
+    <!-- "_strings"."chat" -->
+    <!-- Fuzzy -->
+    <string name="chat_header_ongoing_status_metrics">Replies under %1$s</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_header_ongoing_status_last">Last active %1$s</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_header_ongoing_status_online">Support is online</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_header_ongoing_status_away">Support is away</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_new_messages">There are new messages below. Click to see.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_warn_reply">Click to set your email to get notifications.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_invalid">You mistyped your email, can you check it?</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_wait_reply_online">Thanks ! We should reply in a few moments.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_wait_reply_away">We are not online. We will email you back.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_label">What is your email address?</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_entice_default">We use your email to reply, if we reply later.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_entice_error">You entered an invalid email. Enter it again.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_email_field">Enter your email address...</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_email_cancel">I don\'t want to be notified of replies.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_alerts_email_form_email_button">Send</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_pickers_selector_smileys">Smileys</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_pickers_selector_gifs">GIFs</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_pickers_gif_search">Find GIFs...</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_pickers_gif_no_results">No results. Try another search.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_message_file_name">Attached file</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_message_file_button">Download file</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_message_info_read">Read</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_message_error_retry">Failed to send. Retry?</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_message_send_abort_warn">Some messages have not yet been sent. Navigating will prevent them from being sent.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_field_message">Compose your message...</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_smiley_tooltip">Insert an emoji</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_attach_tooltip">Send a file</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_attach_alert_size">File too large. Please reduce its size and try again.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_attach_alert_error">An error occured while uploading the file. Please try again.</string>
+
+    <!-- "_strings"."chat" -->
+    <string name="chat_form_attach_abort_warn">Navigating when a file is being uploaded will stop upload.</string>
+</resources>
