@@ -1,10 +1,7 @@
 package im.crisp.sdk.utils;
 
 import android.annotation.TargetApi;
-import android.app.Application;
-import android.content.Context;
 import android.os.Build;
-import android.support.v4.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;

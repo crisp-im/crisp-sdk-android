@@ -1,13 +1,10 @@
 package im.crisp.sdk.services.wrappers;
 
-import android.app.Activity;
-import android.support.v4.app.SupportActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 
 import im.crisp.sdk.R;
 import im.crisp.sdk.SharedCrisp;
-import im.crisp.sdk.services.Socket;
 import im.crisp.sdk.ui.CrispFragment;
 
 /**
