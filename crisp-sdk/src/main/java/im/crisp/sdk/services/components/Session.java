@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken;
 import com.orhanobut.logger.Logger;
 
 import org.greenrobot.eventbus.EventBus;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -207,6 +208,16 @@ public class Session {
             e.printStackTrace();
         }
         socket.emitAync("session:set_data", data);
+    }
+
+    public void setSegments(JSONArray segments) {
+        JSONObject data = new JSONObject();
+        try {
+            data.put("segments", segments);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        socket.emitAync("session:set_segments", data);
     }
 
 

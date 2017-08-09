@@ -1,6 +1,9 @@
 package im.crisp.sdk.services.wrappers;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.List;
 
 import im.crisp.sdk.SharedCrisp;
 
@@ -74,5 +77,9 @@ public class User {
         }
         crisp.getContextStore().saveSession();
         crisp.getSocket().getSession().setData(data);
+    }
+
+    public void setSegments(List<String> segments) {
+        crisp.getSocket().getSession().setSegments(new JSONArray(segments));
     }
 }

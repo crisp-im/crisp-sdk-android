@@ -27,7 +27,7 @@ repositories {
 Then, add the Crisp SDK in your dependencies:
 
 ```groovy
-compile 'im.crisp:crisp-sdk:0.0.14'
+compile 'im.crisp:crisp-sdk:0.0.15'
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
@@ -83,7 +83,10 @@ button.setOnClickListener(new View.OnClickListener() {
 * `Crisp.getUser().setNickname("John");`
 * `Crisp.getUser().setPhone("+44164642242");`
 * `Crisp.getUser().setAvatar("https://pbs.twimg.com/profile_images/782474226020200448/zDo-gAo0_400x400.jpg");`
+* `Crisp.getUser().setData();`
+* `Crisp.getUser().setSegments();`
 * `Crisp.getUser().getEmail();`
 * `Crisp.getUser().getNickname();`
 * `Crisp.getUser().getPhone();`
+* `Crisp.getUser().getData();`
 * `Crisp.getUser().getAvatar("https://pbs.twimg.com/profile_images/782474226020200448/zDo-gAo0_400x400.jpg");`
