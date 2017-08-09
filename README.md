@@ -27,7 +27,7 @@ repositories {
 Then, add the Crisp SDK in your dependencies:
 
 ```groovy
-compile 'im.crisp:crisp-sdk:0.0.15'
+compile 'im.crisp:crisp-sdk:0.0.16'
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
