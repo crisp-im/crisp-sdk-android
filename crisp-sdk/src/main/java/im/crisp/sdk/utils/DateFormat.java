@@ -1,11 +1,5 @@
 package im.crisp.sdk.utils;
 
-import android.content.Context;
-import android.graphics.drawable.Drawable;
-import android.support.v4.content.ContextCompat;
-
-import com.orhanobut.logger.Logger;
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
