@@ -40,7 +40,7 @@ public class Chat {
         if (primaryDarkColor == null) {
             return "#" + Integer.toHexString(ContextCompat.getColor(crisp.getContext(), R.color.crisp_primary));
         }
-        return primaryColor;
+        return primaryDarkColor;
     }
 
     public void setPrimaryDarkColor(String primaryDarkColor) {
