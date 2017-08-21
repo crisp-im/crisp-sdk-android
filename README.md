@@ -15,19 +15,10 @@ Your activities should extend AppCompatActivity instead on Activity
 
 ## Setup
 
-First, add the Crisp Maven replository
-```groovy
-repositories {
-  maven {
-    url  "http://dl.bintray.com/crispim/crisp-maven"
-  }
-}
-```
-
-Then, add the Crisp SDK in your dependencies:
+Add the Crisp SDK in your dependencies:
 
 ```groovy
-compile 'im.crisp:crisp-sdk:0.0.16'
+compile 'im.crisp:crisp-sdk:0.0.17'
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
@@ -39,7 +30,9 @@ public class Initializer extends Application {
         super.onCreate();
 
         // Replace it with your WEBSITE_ID
-        Crisp.initialize(this, "b7399616-babb-4075-861f-b0ca5eb1d0ea");
+        Crisp.with(this)
+                .setWebsiteId("1721455c-8126-40d5-a5be-f42164d85432")
+                .initialize();
         
         // You can also set a custom color
         // Crisp.getChat().setPrimaryColor("#9012FE");

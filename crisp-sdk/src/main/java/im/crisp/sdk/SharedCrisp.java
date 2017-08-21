@@ -17,6 +17,7 @@ import im.crisp.sdk.utils.Device;
 public class SharedCrisp {
     private static SharedCrisp instance;
     private String websiteId;
+    private String tokenId;
     private Context context;
     private Socket socket;
     private Device device;
@@ -28,11 +29,12 @@ public class SharedCrisp {
     private Config config = new Config();
     private boolean logEnabled = false;
 
-    public SharedCrisp(Context context, String websiteId) {
+    public SharedCrisp(Crisp.Builder builder) {
         instance = this;
 
-        this.context = context;
-        this.websiteId = websiteId;
+        this.context = builder.getContext();
+        this.websiteId = builder.getWebsiteId();
+        this.tokenId = builder.getTokenId();
 
         contextStore = new ContextStore(this);
         dateFormat = new DateFormat(this);
@@ -43,8 +45,8 @@ public class SharedCrisp {
         session = new Session(this);
     }
 
-    public static void initialize(Context context, String websiteId) {
-        instance = new SharedCrisp(context, websiteId);
+    public static void initialize(Crisp.Builder builder) {
+        instance = new SharedCrisp(builder);
     }
 
     public static SharedCrisp getInstance() {
@@ -93,5 +95,13 @@ public class SharedCrisp {
 
     public void setLogEnabled(boolean logEnabled) {
         this.logEnabled = logEnabled;
+    }
+
+    public String getTokenId() {
+        return tokenId;
+    }
+
+    public void setTokenId(String tokenId) {
+        this.tokenId = tokenId;
     }
 }

@@ -105,7 +105,8 @@ public class Session {
     private void create() {
         SessionCreate create = new SessionCreate();
         create.websiteId = crisp.getInstance().getWebsiteId();
-        create.websiteDomain = "crisp.im";
+        create.websiteDomain = "crisp.chat";
+        create.tokenId = crisp.getInstance().getTokenId();
         socket.emit("session:create", CrispJson.GsonToJSON(create));
     }
 

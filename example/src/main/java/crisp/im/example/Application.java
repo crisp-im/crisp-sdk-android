@@ -12,8 +12,11 @@ public class Application extends android.app.Application {
     public void onCreate() {
         super.onCreate();
 
+        Crisp.with(this)
+                .setWebsiteId("1721455c-8126-40d5-a5be-f42164d85432")
+                .setTokenId("test")
+                .initialize();
 
-        Crisp.initialize(this, "1721455c-8126-40d5-a5be-f42164d85432");
         //SharedCrisp.getInstance().setLogEnabled(true);
         //Crisp.getChat().setPrimaryColor("#9012FE");
         //Crisp.getChat().setPrimaryDarkColor("#9012FE");
