@@ -1,554 +1,323 @@
 package im.crisp.sdk.ui;
 
-import android.Manifest;
-import android.animation.Animator;
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.Intent;
-import android.database.Cursor;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.OpenableColumns;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.Toolbar;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.ProgressBar;
-import android.widget.TextView;
-
-import com.daimajia.androidanimations.library.Techniques;
-import com.daimajia.androidanimations.library.YoYo;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import com.jakewharton.rxbinding2.widget.RxTextView;
-
-import net.gotev.uploadservice.BinaryUploadRequest;
-import net.gotev.uploadservice.Logger;
-import net.gotev.uploadservice.ServerResponse;
-import net.gotev.uploadservice.UploadInfo;
-import net.gotev.uploadservice.UploadNotificationConfig;
-import net.gotev.uploadservice.UploadStatusDelegate;
-
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
-import org.w3c.dom.Text;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedList;
 
-import im.crisp.sdk.*;
-import im.crisp.sdk.models.BucketGenerated;
-import im.crisp.sdk.models.message.Message;
-import im.crisp.sdk.models.message.MessageAcknowledge;
-import im.crisp.sdk.models.message.MessageCompose;
-import im.crisp.sdk.models.session.SessionJoined;
-import im.crisp.sdk.ui.internals.adapters.CrispMessagesAdapter;
-import im.crisp.sdk.ui.internals.views.CrispMediaView;
-import im.crisp.sdk.utils.CrispJson;
-import io.reactivex.Observable;
-import permissions.dispatcher.NeedsPermission;
-import permissions.dispatcher.RuntimePermissions;
-
-import static android.view.View.GONE;
-import static android.view.View.VISIBLE;
+import im.crisp.sdk.Crisp;
+import im.crisp.sdk.R;
 
 /**
- * Created by baptistejamin on 27/04/2017.
+ * Created by baptistejamin on 29/12/2017.
  */
 
-@RuntimePermissions
-public class CrispFragment extends DialogFragment implements CrispMediaView.CrispMediaViewCallback {
+public class CrispFragment extends Fragment {
+    private static final String TAG = CrispFragment.class.getSimpleName();
 
-    TextView mToolBarTextTitle;
-    TextView mToolbarTextActivity;
-    EditText mTextInput;
-    ImageButton mButtonAttach;
-    ImageButton mButtonSend;
-    ImageButton mButtonSmiley;
-    CrispMediaView mMediaView;
-    Toolbar mToolbar;
-    ImageButton mToolbarBack;
-    View mViewFile;
-    ProgressBar mProgressFile;
-    RecyclerView mRecyclerMessages;
-    CrispMessagesAdapter mRecyclerAdapter;
-    String primaryColor;
-    String primaryDarkColor;
+    public static final int INPUT_FILE_REQUEST_CODE = 1;
+    public static final String EXTRA_FROM_NOTIFICATION = "EXTRA_FROM_NOTIFICATION";
 
-    Uri filePath;
-    String fileName;
-    String fileType;
+    static WebView mWebView;
+    private ValueCallback<Uri[]> mFilePathCallback;
+    private String mCameraPhotoPath;
 
-    static int FILE_CODE = 42;
+    private static LinkedList<String> commandQueue = new LinkedList<String>();
+
+    private static boolean isLoaded = false;
+
+    public CrispFragment() {
+    }
 
     @Override
-    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-        final View view = inflater.inflate(R.layout.crisp_view, null);
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View rootView = inflater.inflate(R.layout.crisp_view, container, false);
 
-        mToolbar = (Toolbar) view.findViewById(R.id.crisp_view_toolbar);
-        mToolbarBack = (ImageButton) view.findViewById(R.id.crisp_view_toolbar_back);
-        mToolbarBack.setOnClickListener((View v) -> dismiss());
-        mToolBarTextTitle = (TextView) view.findViewById(R.id.crisp_view_toolbar_title);
-        mToolbarTextActivity = (TextView) view.findViewById(R.id.crisp_view_toolbar_activity);
-        mTextInput = (EditText) view.findViewById(R.id.crisp_input_text);
-        mTextInput.addTextChangedListener(new TextWatcher() {
+        // Get reference of WebView from layout/activity_main.xml
+        mWebView = (WebView) rootView.findViewById(R.id.crisp_view_webview);
+
+        setUpWebViewDefaults(mWebView);
+
+        // Check whether we're recreating a previously destroyed instance
+        if (savedInstanceState != null) {
+            // Restore the previous URL and history stack
+            mWebView.restoreState(savedInstanceState);
+        }
+
+        // Set the web view client
+        mWebView.setWebViewClient(new WebViewClient() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
 
+                isLoaded = true;
+                flushQueue();
             }
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (mTextInput.getText().length() > 0 && mButtonSend.getVisibility() == GONE) {
-                    showSend();
-                } else if (mTextInput.getText().length() == 0 && mButtonAttach.getVisibility() == GONE) {
-                    showAttach();
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url.startsWith("mailto")) {
+                    handleMailToLink(url);
+                    return true;
                 }
+
+                return false;
             }
 
             @Override
-            public void afterTextChanged(Editable s) {
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                String url = "";
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    url = request.getUrl().toString();
+                }
 
-            }
-        });
-        mButtonAttach = (ImageButton) view.findViewById(R.id.crisp_button_attach);
-        mButtonAttach.setOnClickListener(v -> CrispFragmentPermissionsDispatcher.handleSendFileWithCheck(this));
+                if (url.startsWith("mailto")) {
+                    handleMailToLink(url);
+                    return true;
+                }
 
-        mButtonSend = (ImageButton) view.findViewById(R.id.crisp_button_send);
-        mButtonSend.setOnClickListener(v -> sendTextMessage());
-
-        mMediaView = (CrispMediaView) view.findViewById(R.id.crisp_view_media);
-        mMediaView.setMediaViewCallback(this);
-
-        mButtonSmiley = (ImageButton) view.findViewById(R.id.crisp_button_smiley);
-        mButtonSmiley.setOnClickListener(v -> {
-            mButtonSmiley.setSelected(!mButtonSmiley.isSelected());
-
-            if (mButtonSmiley.isSelected()) {
-                mMediaView.display();
-            } else {
-                mMediaView.hide();
+                return false;
             }
         });
 
-        mViewFile = view.findViewById(R.id.crisp_frame_file);
+        mWebView.setWebChromeClient(new WebChromeClient() {
+            public boolean onShowFileChooser(
+                    WebView webView, ValueCallback<Uri[]> filePathCallback,
+                    WebChromeClient.FileChooserParams fileChooserParams) {
+                if (mFilePathCallback != null) {
+                    mFilePathCallback.onReceiveValue(null);
+                }
+                mFilePathCallback = filePathCallback;
 
-        mProgressFile = (ProgressBar) view.findViewById(R.id.crisp_progress_file);
+                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                if (takePictureIntent.resolveActivity(getActivity().getPackageManager()) != null) {
+                    // Create the File where the photo should go
+                    File photoFile = null;
+                    try {
+                        photoFile = createImageFile();
+                        takePictureIntent.putExtra("PhotoPath", mCameraPhotoPath);
+                    } catch (IOException ex) {
+                        // Error occurred while creating the File
+                        //Log.e(TAG, "Unable to create Image File", ex);
+                    }
 
-        mRecyclerMessages = (RecyclerView) view.findViewById(R.id.crisp_view_message);
-        mRecyclerMessages.setLayoutManager(new LinearLayoutManager(getContext()));
-        mRecyclerAdapter = new CrispMessagesAdapter(getContext());
-        mRecyclerMessages.setAdapter(mRecyclerAdapter);
+                    // Continue only if the File was successfully created
+                    if (photoFile != null) {
+                        mCameraPhotoPath = "file:" + photoFile.getAbsolutePath();
+                        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
+                                Uri.fromFile(photoFile));
+                    } else {
+                        takePictureIntent = null;
+                    }
+                }
 
-        handleMagicType();
+                Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                contentSelectionIntent.setType("image/*");
 
-        primaryColor = Crisp.getChat().getPrimaryColor();
-        primaryDarkColor = Crisp.getChat().getPrimaryDarkColor();
+                Intent[] intentArray;
+                if (takePictureIntent != null) {
+                    intentArray = new Intent[]{takePictureIntent};
+                } else {
+                    intentArray = new Intent[0];
+                }
 
-        bindTheme();
-        bindText();
+                Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+                chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+                chooserIntent.putExtra(Intent.EXTRA_TITLE, "Image Chooser");
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
 
-        syncMessages(false);
-        updateHeader();
+                startActivityForResult(chooserIntent, INPUT_FILE_REQUEST_CODE);
 
-        return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        markAllAsRead();
-    }
-
-    public void bindTheme() {
-        if (primaryColor != null) {
-            mToolbar.setBackgroundDrawable(new ColorDrawable(Color.parseColor(primaryColor)));
-            mButtonSmiley.setColorFilter(Color.parseColor(primaryColor));
-            mButtonSend.setColorFilter(Color.parseColor(primaryColor));
-            mButtonAttach.setColorFilter(Color.parseColor(primaryColor));
-            mRecyclerAdapter.setPrimaryColor(primaryColor);
-            mRecyclerAdapter.notifyDataSetChanged();
-            mMediaView.setPrimaryColor(primaryColor);
-        }
-
-        if (primaryDarkColor != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                getDialog().getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-                getDialog().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-                getDialog().getWindow().setStatusBarColor(Color.parseColor(primaryDarkColor));
+                return true;
             }
-        }
+        });
+
+        mWebView.loadUrl("file:///android_asset/index.html");
+        execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
+        execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
+        execute("initialize()");
+        return rootView;
     }
 
-    public void bindText() {
-        SessionJoined session = SharedCrisp.getInstance().getContextStore().getSession();
-        if (session == null) {
-            return;
-        }
-
-        if (session.settings == null || session.settings.textTheme == null) {
-            return;
-        }
-
-        int id = getResources().getIdentifier("theme_text_" + session.settings.textTheme + "_chat", "string", getContext().getPackageName());
-
-        if (id == 0) {
-            return;
-        }
-
-        mToolBarTextTitle.setText(id);
+    /**
+     * More info this method can be found at
+     * http://developer.android.com/training/camera/photobasics.html
+     *
+     * @return
+     * @throws IOException
+     */
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES);
+        File imageFile = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+        return imageFile;
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        EventBus.getDefault().register(this);
-    }
+    /**
+     * Convenience method to set some generic defaults for a
+     * given WebView
+     *
+     * @param webView
+     */
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    private void setUpWebViewDefaults(WebView webView) {
+        WebSettings settings = webView.getSettings();
 
-    @Override
-    public void onStop() {
-        EventBus.getDefault().unregister(this);
-        super.onStop();
-    }
+        // Enable Javascript
+        settings.setJavaScriptEnabled(true);
 
-    public void updateHeader() {
-        SessionJoined session = SharedCrisp.getInstance().getContextStore().getSession();
-        if (session == null) {
-            return;
+        // Use WideViewport and Zoom out if there is no viewport defined
+        settings.setUseWideViewPort(true);
+
+        settings.setLoadWithOverviewMode(true);
+
+
+        // Enable pinch to zoom without the zoom buttons
+        settings.setBuiltInZoomControls(true);
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB) {
+            // Hide the zoom controls for HONEYCOMB+
+            settings.setDisplayZoomControls(false);
         }
 
-        if (session.responseMetrics == null) {
-            return;
+        // Enable remote debugging via chrome://inspect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true);
         }
-        mToolbarTextActivity.setText(getResources().getString(
-                R.string.chat_header_ongoing_status_metrics,
-                SharedCrisp.getInstance().getDateFormat().duration(session.responseMetrics.mean)
-        ));
-    }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        CrispFragmentPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults);
+        // We set the WebViewClient to ensure links are consumed by the WebView rather
+        // than passed to a browser if it can
+        mWebView.setWebViewClient(new WebViewClient());
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != INPUT_FILE_REQUEST_CODE || mFilePathCallback == null) {
+            super.onActivityResult(requestCode, resultCode, data);
+            return;
+        }
 
-        if (requestCode == FILE_CODE && resultCode == Activity.RESULT_OK) {
-            Uri picked = data.getData();
+        Uri[] results = null;
 
-            if (picked == null)
-                return;
-
-
-            if (picked.toString().startsWith("content://")) {
-                Cursor cursor = null;
-                try {
-                    cursor = getActivity().getContentResolver().query(picked, null, null, null, null);
-                    if (cursor != null && cursor.moveToFirst()) {
-                        fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
-                    }
-                } finally {
-                    cursor.close();
+        // Check that the response is a good one
+        if (resultCode == Activity.RESULT_OK) {
+            if (data == null) {
+                // If there is not data, then we may have taken a photo
+                if (mCameraPhotoPath != null) {
+                    results = new Uri[]{Uri.parse(mCameraPhotoPath)};
                 }
-            } else if (picked.toString().startsWith("file://")) {
-                File myFile = new File(picked.toString());
-                fileName = myFile.getName();
-            }
-
-            filePath = picked;
-
-            fileType = getActivity().getContentResolver().getType(picked);
-
-            SharedCrisp.getInstance().getSocket().getBucket().generateBucket(fileName, fileType);
-
-            mViewFile.setVisibility(VISIBLE);
-        }
-    }
-
-    private void showSend() {
-        YoYo.with(Techniques.SlideInUp)
-                .duration(350).withListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-                mButtonSend.setVisibility(VISIBLE);
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-
-            }
-        }).playOn(mButtonSend);
-        YoYo.with(Techniques.SlideOutUp)
-                .duration(350).withListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                mButtonAttach.setVisibility(GONE);
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-
-            }
-        }).playOn(mButtonAttach);
-    }
-
-    private void showAttach() {
-        YoYo.with(Techniques.SlideOutDown)
-                .duration(350).withListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                mButtonSend.setVisibility(GONE);
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-
-            }
-        }).playOn(mButtonSend);
-        YoYo.with(Techniques.SlideInDown)
-                .duration(350).withListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-                mButtonAttach.setVisibility(VISIBLE);
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-
-            }
-        }).playOn(mButtonAttach);
-    }
-
-    private void sendTextMessage() {
-        if (mTextInput.getText().length() > 0) {
-            SharedCrisp.getInstance().getSocket().getMessage().sendTextMessage(mTextInput.getText().toString());
-        }
-        mTextInput.getText().clear();
-    }
-
-    private void handleMagicType() {
-        Observable<String> obs = RxTextView.textChanges(mTextInput)
-                .debounce(300, TimeUnit.MILLISECONDS)
-                .map(charSequence -> charSequence.toString());
-
-        obs.subscribe(string -> {
-            if (string != null && string.length() > 0) {
-                SharedCrisp.getInstance().getSocket().getMessage().composeSend("start", string);
             } else {
-                SharedCrisp.getInstance().getSocket().getMessage().composeSend("stop", null);
-            }
-        });
-    }
-
-    @NeedsPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-    void handleSendFile() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*");
-        startActivityForResult(intent, FILE_CODE);
-    }
-
-
-    public void uploadFile(String signedUrl, final String ressourceUrl) {
-        try {
-
-            File outputDir = getContext().getCacheDir();
-            File file = File.createTempFile("SharedCrisp", "tmp", outputDir);
-            FileOutputStream fos = new FileOutputStream(file);
-
-            InputStream is = getContext().getContentResolver().openInputStream(filePath);
-            byte[] buffer = new byte[1024];
-            int len = 0;
-            try {
-                len = is.read(buffer);
-                while (len != -1) {
-                    fos.write(buffer, 0, len);
-                    len = is.read(buffer);
+                String dataString = data.getDataString();
+                if (dataString != null) {
+                    results = new Uri[]{Uri.parse(dataString)};
                 }
-
-                fos.close();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
+        }
 
-            String uploadId =
-                    new BinaryUploadRequest(getContext(), signedUrl)
-                            .setMethod("PUT")
-                            .addHeader("Content-Disposition", "attachment")
-                            .addHeader("Content-Type", fileType)
-                            .setFileToUpload(file.getPath())
-                            .setNotificationConfig(
-                                    new UploadNotificationConfig()
-                                            .setAutoClearOnSuccess(true)
-                            )
-                            .setMaxRetries(2)
-                            .setDelegate(new UploadStatusDelegate() {
-                                @Override
-                                public void onProgress(UploadInfo uploadInfo) {
-                                    mProgressFile.setProgress(uploadInfo.getProgressPercent());
-                                }
+        mFilePathCallback.onReceiveValue(results);
+        mFilePathCallback = null;
+        return;
+    }
 
-                                @Override
-                                public void onError(UploadInfo uploadInfo, Exception exception) {
-                                    file.delete();
-                                    mViewFile.setVisibility(GONE);
-                                }
+    protected void handleMailToLink(String url) {
+        // Initialize a new intent which action is send
+        Intent intent = new Intent(Intent.ACTION_SEND);
 
-                                @Override
-                                public void onCompleted(UploadInfo uploadInfo, ServerResponse serverResponse) {
-                                    JsonObject fileObject = new JsonObject();
-                                    fileObject.add("name", new JsonPrimitive(fileName));
-                                    fileObject.add("type", new JsonPrimitive(fileType));
-                                    fileObject.add("url", new JsonPrimitive(ressourceUrl));
-                                    SharedCrisp.getInstance().getSocket().getMessage().sendFileMessage(fileObject);
-                                    file.delete();
-                                    mViewFile.setVisibility(GONE);
-                                }
 
-                                @Override
-                                public void onCancelled(UploadInfo uploadInfo) {
-                                    file.delete();
-                                    mViewFile.setVisibility(GONE);
-                                }
-                            })
-                            .startUpload();
-        } catch (Exception exc) {
+        // For only email app handle this intent
+        intent.setData(Uri.parse("mailto:"));
 
+        intent.setType("plain/text");
+
+        // Empty the text view
+        // Extract the email address from mailto url
+        String to = url.split("[:?]")[1];
+        if (!TextUtils.isEmpty(to)) {
+            intent.putExtra(Intent.EXTRA_EMAIL, new String[]{to});
+        }
+
+
+        // Extract the subject
+        if (url.contains("subject=")) {
+            String subject = url.split("subject=")[1];
+            if (!TextUtils.isEmpty(subject)) {
+                intent.putExtra(Intent.EXTRA_SUBJECT, subject);
+            }
+        }
+
+        // Extract the body
+        if (url.contains("body=")) {
+            String body = url.split("body=")[1];
+            if (!TextUtils.isEmpty(body)) {
+                body = body.split("&")[0];
+                // Encode the body text
+                try {
+                    body = URLDecoder.decode(body, "UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+                // Put the mail body into intent
+                intent.putExtra(Intent.EXTRA_TEXT, body);
+            }
+        }
+
+        startActivity(intent);
+    }
+
+    static void callJavascript(String script) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            mWebView.evaluateJavascript(script, null);
+        } else {
+            mWebView.loadUrl("javascript:" + script);
         }
     }
 
-    private void syncMessages(boolean scroll) {
-        ArrayList messages = SharedCrisp.getInstance().getContextStore().getMessages();
-        if (messages != null) {
-            mRecyclerAdapter.setMessages(SharedCrisp.getInstance().getContextStore().getMessages());
-            mRecyclerAdapter.notifyDataSetChanged();
-            if (scroll)
-                mRecyclerMessages.smoothScrollToPosition(mRecyclerMessages.getAdapter().getItemCount());
-            else
-                mRecyclerMessages.scrollToPosition(mRecyclerMessages.getAdapter().getItemCount() - 1);
+    static void flushQueue() {
+        Iterator iterator = commandQueue.iterator();
+        while (iterator.hasNext()) {
+            String script = (String) iterator.next();
+            callJavascript(script);
         }
+        commandQueue.clear();
     }
 
-    private void markAllAsRead() {
-        SharedCrisp.getInstance().getSocket().getMessage().acknowledgeMessagesRead(
-                SharedCrisp.getInstance().getContextStore().getUnreadMessages()
-        );
-        SharedCrisp.getInstance().getContextStore().clearUnreadMessages();
-        EventBus.getDefault().post(new MessageAcknowledge());
-    }
-
-    @Override
-    public void onMediaHidden() {
-        mButtonSmiley.setSelected(false);
-    }
-
-    @Override
-    public void onSmileySelected(String smiley) {
-        mTextInput.setText(mTextInput.getText() + smiley);
-        mTextInput.setSelection(mTextInput.getText().length());
-        mMediaView.hide();
-    }
-
-    @Override
-    public void onGifSelected(String gif) {
-        mMediaView.hide();
-        SharedCrisp.getInstance().getSocket().getMessage().sendAnimationMessage(gif);
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(BucketGenerated event) {
-        uploadFile(event.url.signed, event.url.resource);
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(SessionJoined event) {
-        syncMessages(true);
-        updateHeader();
-        bindText();
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(List<Message> event) {
-        syncMessages(true);
-        markAllAsRead();
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(Message event) {
-        syncMessages(true);
-        markAllAsRead();
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(MessageAcknowledge event) {
-        syncMessages(true);
-    }
-
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(MessageCompose event) {
-        mRecyclerMessages.smoothScrollToPosition(mRecyclerMessages.getAdapter().getItemCount());
-        mRecyclerAdapter.setCompose(event);
-        mRecyclerAdapter.notifyDataSetChanged();
+    public static void execute(String script) {
+        commandQueue.add(script);
+        if (isLoaded) {
+            flushQueue();
+        }
     }
 }

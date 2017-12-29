@@ -1,76 +1,112 @@
 package im.crisp.sdk;
 
+import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Build;
+import android.util.Log;
 
-import im.crisp.sdk.services.wrappers.Chat;
-import im.crisp.sdk.services.wrappers.Session;
-import im.crisp.sdk.services.wrappers.User;
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.util.UUID;
+
+import im.crisp.sdk.ui.CrispFragment;
 
 /**
  * Created by baptistejamin on 14/05/2017.
  */
 
 public class Crisp {
-    @Deprecated
-    public static void initialize(Context context, String websiteId) {
-        Crisp.Builder build = new Crisp.Builder(context);
-        build.setWebsiteId(websiteId);
-        build.initialize();
+    private static String _pkg = "im.crisp.sdk";
+    private static Crisp instance;
+    private String websiteId;
+    private String tokenId;
+    private Context context;
+
+    public Crisp(Context context) {
+        this.context = context;
+        generateTokenId();
     }
 
-    public static Crisp.Builder with(Context context) {
-        return new Crisp.Builder(context);
+    public static void initialize(Context context) {
+        instance = new Crisp(context);
     }
 
-    public static Chat getChat() {
-        return SharedCrisp.getInstance().getChat();
+
+    public static Crisp getInstance() {
+        if (instance == null) {
+            Log.e(_pkg, "No instance for Crisp SDK. Please call add Crisp.initialize(\"getContext()\")");
+        }
+        return instance;
     }
 
-    public static User getUser() {
-        return SharedCrisp.getInstance().getUser();
+    public void generateTokenId() {
+        tokenId = context.getSharedPreferences(_pkg, Context.MODE_PRIVATE).getString("crisp_token_id", null);
+        if (tokenId != null) {
+            return;
+        }
+        SharedPreferences.Editor editor = context.getSharedPreferences(_pkg, Context.MODE_PRIVATE).edit();
+
+        tokenId = UUID.randomUUID().toString();
+
+        editor.putString("crisp_token_id", tokenId);
+
+        editor.apply();
     }
 
-    public static Session getSession() {return SharedCrisp.getInstance().getSession();}
-    public boolean isLogEnabled() {
-        return SharedCrisp.getInstance().isLogEnabled();
+    public void setWebsiteId(String websiteId) {
+        this.websiteId = websiteId;
     }
 
-    public void setLogEnabled(boolean logEnabled) {
-        SharedCrisp.getInstance().setLogEnabled(logEnabled);
+    public String getWebsiteId() {
+        return websiteId;
     }
 
-    public static class Builder {
-        Context context;
-        public String websiteId;
-        public String tokenId;
-        Builder(Context context) {
-            this.context = context;
+    public void setTokenId(String tokenId) {
+        this.tokenId = tokenId;
+    }
+
+    public String getTokenId() {
+        return tokenId;
+    }
+
+    static public class User {
+        public static void setEmail(String email) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"user:email\", [\"" + email + "\"]])");
         }
 
-        public Context getContext() {
-            return this.context;
+        public static void setNickname(String nickname) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"user:nickname\", [\"" + nickname + "\"]])");
         }
 
-        public String getWebsiteId() {
-            return websiteId;
+        public static void setPhone(String phone) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"user:phone\", [\"" + phone + "\"]])");
         }
 
-        public Builder setWebsiteId(String websiteId) {
-            this.websiteId = websiteId;
-            return this;
+        public static void setAvatar(String avatar) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"user:avatar\", [\"" + avatar + "\"]])");
+        }
+    }
+
+    static public class Session {
+        public static void setData(String key, String value) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"session:data\", [\"" + key + "\", \"" + value + "\"]])");
         }
 
-        public String getTokenId() {
-            return tokenId;
+        public static void setSegments(String segment) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"session:set_segments\", [\"" + segment + "\"]])");
         }
 
-        public Builder setTokenId(String tokenId) {
-            this.tokenId = tokenId;
-            return this;
-        }
-
-        public void initialize() {
-            SharedCrisp.initialize(this);
+        @TargetApi(Build.VERSION_CODES.KITKAT)
+        public static void setSegments(String... segments) {
+            JSONArray jsonSegments;
+            try {
+                jsonSegments = new JSONArray(segments);
+                CrispFragment.execute("window.$crisp.push([\"set\", \"session:set_segments\", \"" + jsonSegments.toString() + "\")");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

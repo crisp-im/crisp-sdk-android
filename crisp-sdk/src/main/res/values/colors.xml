@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="crisp_white">#FFFFFF</color>
-    <color name="crisp_primary">#377FEA</color>
-    <color name="crisp_dark_grey">#676767</color>
-    <color name="crisp_tooltip_background">#DD222C3C</color>
 </resources>

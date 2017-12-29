@@ -8,10 +8,11 @@
     tools:context="crisp.im.example.MainActivity"
     tools:showIn="@layout/app_bar_main">
 
-    <Button
-        android:id="@+id/button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Reset"/>
+    <fragment
+        android:name="im.crisp.sdk.ui.CrispFragment"
+        android:tag="crisp_fragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="0dp" />
 
 </android.support.constraint.ConstraintLayout>
