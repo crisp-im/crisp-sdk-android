@@ -40,7 +40,6 @@ public class CrispFragment extends Fragment {
     private static final String TAG = CrispFragment.class.getSimpleName();
 
     public static final int INPUT_FILE_REQUEST_CODE = 1;
-    public static final String EXTRA_FROM_NOTIFICATION = "EXTRA_FROM_NOTIFICATION";
 
     static WebView mWebView;
     private ValueCallback<Uri[]> mFilePathCallback;
@@ -250,6 +249,12 @@ public class CrispFragment extends Fragment {
         mFilePathCallback.onReceiveValue(results);
         mFilePathCallback = null;
         return;
+    }
+
+    @Override
+    public void onDetach() {
+        isLoaded = false;
+        super.onDetach();
     }
 
     protected void handleMailToLink(String url) {
