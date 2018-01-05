@@ -18,7 +18,7 @@ Your activities should extend AppCompatActivity instead on Activity
 Add the Crisp SDK in your dependencies:
 
 ```groovy
-compile 'im.crisp:crisp-sdk:0.1.0'
+compile 'im.crisp:crisp-sdk:0.1.1'
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
