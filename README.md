@@ -9,10 +9,6 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
  [ ![Download](https://api.bintray.com/packages/crispim/crisp-maven/crisp-sdk-android/images/download.svg) ](https://bintray.com/crispim/crisp-maven/crisp-sdk-android/_latestVersion)
 [![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
 
-## Prerequisites
-
-Your activities should extend AppCompatActivity instead on Activity
-
 ## Setup
 
 Add the Crisp SDK in your dependencies:
