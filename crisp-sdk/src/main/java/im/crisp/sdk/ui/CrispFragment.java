@@ -47,7 +47,7 @@ public class CrispFragment extends Fragment {
 
     private static LinkedList<String> commandQueue = new LinkedList<String>();
 
-    private static boolean isLoaded = false;
+    public static boolean isLoaded = false;
 
     public CrispFragment() {
     }
@@ -158,9 +158,8 @@ public class CrispFragment extends Fragment {
         });
 
         mWebView.loadUrl("file:///android_asset/index.html");
-        execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
-        execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
-        execute("initialize()");
+
+        load();
         return rootView;
     }
 
@@ -317,6 +316,12 @@ public class CrispFragment extends Fragment {
             callJavascript(script);
         }
         commandQueue.clear();
+    }
+
+    public static void load() {
+        execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
+        execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
+        execute("initialize()");
     }
 
     public static void execute(String script) {

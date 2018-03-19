@@ -71,6 +71,10 @@ public class Crisp {
         return tokenId;
     }
 
+    public Context getContext() {
+        return context;
+    }
+
     static public class User {
         public static void setEmail(String email) {
             CrispFragment.execute("window.$crisp.push([\"set\", \"user:email\", [\"" + email + "\"]])");
@@ -107,6 +111,13 @@ public class Crisp {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
+        }
+
+        public static void reset() {
+            getInstance().context.getSharedPreferences(_pkg, Context.MODE_PRIVATE).edit().remove("crisp_token_id").apply();
+            getInstance().generateTokenId();
+            CrispFragment.execute("window.location.reload()");
+            CrispFragment.load();
         }
     }
 }

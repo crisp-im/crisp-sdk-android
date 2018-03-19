@@ -3,13 +3,20 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:orientation="horizontal">
 
-    <fragment
-        android:name="im.crisp.sdk.ui.CrispFragment"
+    <FrameLayout
+        android:id="@+id/fl_crisp_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_margin="0dp"
-        android:tag="crisp_fragment"/>
+        android:layout_height="match_parent">
+
+        <fragment
+            android:name="im.crisp.sdk.ui.CrispFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="0dp"
+            android:tag="crisp_fragment" />
+
+    </FrameLayout>
 
 </LinearLayout>
