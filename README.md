@@ -55,3 +55,4 @@ You can embed the CrispFragment in your Activity
 * `Crisp.Session.setData("key", "value");`
 * `Crisp.Session.setSegments("segment");`
 * `Crisp.Session.setSegments("segment1", "segment2");`
+* `Crisp.Session.reset();`
