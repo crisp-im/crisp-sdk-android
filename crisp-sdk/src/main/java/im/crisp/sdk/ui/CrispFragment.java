@@ -202,6 +202,10 @@ public class CrispFragment extends Fragment {
 
         settings.setLoadWithOverviewMode(true);
 
+        settings.setDatabaseEnabled(true);
+        settings.setDomStorageEnabled(true);
+
+
 
         // Enable pinch to zoom without the zoom buttons
         settings.setBuiltInZoomControls(true);
