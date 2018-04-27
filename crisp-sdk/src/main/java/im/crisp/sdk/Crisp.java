@@ -99,15 +99,17 @@ public class Crisp {
         }
 
         public static void setSegments(String segment) {
-            CrispFragment.execute("window.$crisp.push([\"set\", \"session:set_segments\", [\"" + segment + "\"]])");
+            CrispFragment.execute("window.$crisp.push([\"set\", \"session:segments\", [\"" + segment + "\"]])");
         }
+
+
 
         @TargetApi(Build.VERSION_CODES.KITKAT)
         public static void setSegments(String... segments) {
             JSONArray jsonSegments;
             try {
                 jsonSegments = new JSONArray(segments);
-                CrispFragment.execute("window.$crisp.push([\"set\", \"session:set_segments\", \"" + jsonSegments.toString() + "\")");
+                CrispFragment.execute("window.$crisp.push([\"set\", \"session:segments\", \"" + jsonSegments.toString() + "\")");
             } catch (JSONException e) {
                 e.printStackTrace();
             }
