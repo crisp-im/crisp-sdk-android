@@ -323,8 +323,13 @@ public class CrispFragment extends Fragment {
     }
 
     public static void load() {
-        execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
-        execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
+        if (Crisp.getInstance().getTokenId() != null) {
+            execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
+        }
+
+        if (Crisp.getInstance().getWebsiteId() != null) {
+            execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
+        }
         execute("initialize()");
     }
 
