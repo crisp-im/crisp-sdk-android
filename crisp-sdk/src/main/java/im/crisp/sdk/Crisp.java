@@ -109,7 +109,7 @@ public class Crisp {
             JSONArray jsonSegments;
             try {
                 jsonSegments = new JSONArray(segments);
-                CrispFragment.execute("window.$crisp.push([\"set\", \"session:segments\", [\"" + jsonSegments.toString() + "]\")");
+                CrispFragment.execute("window.$crisp.push([\"set\", \"session:segments\", [" + jsonSegments.toString() + "]])");
             } catch (JSONException e) {
                 e.printStackTrace();
             }
