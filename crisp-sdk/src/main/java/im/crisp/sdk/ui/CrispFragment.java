@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -323,13 +324,20 @@ public class CrispFragment extends Fragment {
     }
 
     public static void load() {
-        if (Crisp.getInstance().getTokenId() != null) {
+        if (Crisp.getInstance() == null) {
+            Log.e("Crisp", "============================================");
+            Log.e("Crisp", "Please instantiate Crisp from your Application class");
+            Log.e("Crisp", "============================================");
+        }
+
+        if (Crisp.getInstance().getTokenId() != null && !Crisp.getInstance().getTokenId().isEmpty()) {
             execute("window.CRISP_TOKEN_ID = \"" + Crisp.getInstance().getTokenId() + "\";");
         }
 
         if (Crisp.getInstance().getWebsiteId() != null) {
             execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
         }
+
         execute("initialize()");
     }
 
