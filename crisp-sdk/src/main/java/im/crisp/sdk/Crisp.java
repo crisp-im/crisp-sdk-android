@@ -119,6 +119,7 @@ public class Crisp {
             getInstance().context.getSharedPreferences(_pkg, Context.MODE_PRIVATE).edit().remove("crisp_token_id").apply();
             getInstance().generateTokenId();
             CrispFragment.execute("window.location.reload()");
+            CrispFragment.isLoaded = false;
             CrispFragment.load();
         }
     }
