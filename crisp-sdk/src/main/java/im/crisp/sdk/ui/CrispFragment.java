@@ -24,6 +24,7 @@ import android.webkit.WebViewClient;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -100,6 +101,17 @@ public class CrispFragment extends Fragment {
                     handleMailToLink(url);
                     return true;
                 }
+
+                if (url.startsWith("tel:")) {
+                    handleTelToLink(url);
+                    return true;
+                }
+
+                if (url.startsWith("intent")) {
+                    handleIntentToLink(url);
+                    return false;
+                }
+
 
                 return false;
             }
@@ -259,6 +271,21 @@ public class CrispFragment extends Fragment {
     public void onDetach() {
         isLoaded = false;
         super.onDetach();
+    }
+
+    protected void handleIntentToLink(String url) {
+        try {
+            Intent intent= Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+            startActivity(intent);
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void handleTelToLink(String url) {
+        Intent intent = new Intent(Intent.ACTION_DIAL);
+        intent.setData(Uri.parse(url));
+        startActivity(intent);
     }
 
     protected void handleMailToLink(String url) {
