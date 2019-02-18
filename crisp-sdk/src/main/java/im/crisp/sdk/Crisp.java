@@ -22,6 +22,8 @@ public class Crisp {
     private static Crisp instance;
     private String websiteId;
     private String tokenId;
+    private String locale;
+
     private Context context;
 
     public Crisp(Context context) {
@@ -69,6 +71,14 @@ public class Crisp {
 
     public String getTokenId() {
         return tokenId;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
+    }
+
+    public String getLocale() {
+        return locale;
     }
 
     public Context getContext() {

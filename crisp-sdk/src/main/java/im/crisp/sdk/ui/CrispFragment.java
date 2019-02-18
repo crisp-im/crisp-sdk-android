@@ -365,6 +365,11 @@ public class CrispFragment extends Fragment {
             execute("window.CRISP_WEBSITE_ID = \"" + Crisp.getInstance().getWebsiteId() + "\";");
         }
 
+        if (Crisp.getInstance().getLocale() != null) {
+            execute("window.CRISP_RUNTIME_CONFIG.locale = \"" + Crisp.getInstance().getLocale() + "\";");
+        }
+
+
         execute("initialize()");
     }
 

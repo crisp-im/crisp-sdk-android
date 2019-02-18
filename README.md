@@ -56,6 +56,7 @@ You can embed the CrispFragment in your Activity
 
 ## Availables APIs:
 
+* `Crisp.setLocale("it")`
 * `Crisp.User.setEmail("john.doe@gmail.com");`
 * `Crisp.User.setNickname("John Doe");`
 * `Crisp.User.setPhone("003370123456789");`
