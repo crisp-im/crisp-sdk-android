@@ -9,6 +9,7 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.util.Map;
 import java.util.UUID;
 
 import im.crisp.sdk.ui.CrispFragment;
@@ -106,6 +107,25 @@ public class Crisp {
     static public class Session {
         public static void setData(String key, String value) {
             CrispFragment.execute("window.$crisp.push([\"set\", \"session:data\", [\"" + key + "\", \"" + value + "\"]])");
+        }
+
+        public static void setData(Map<String, String> data) {
+            String pendingData = "";
+            int index = 0;
+
+            for(Map.Entry<String, String> entry : data.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+
+                if (index == 0) {
+                    pendingData = "[\"" + key + "\", \"" + value + "\"]";
+                } else {
+                    pendingData = pendingData + ",[\"" + key + "\", \"" + value + "\"]";
+                }
+                index += 1;
+            }
+
+            CrispFragment.execute("window.$crisp.push([\"set\", \"session:data\", [[" + pendingData + "]]])");
         }
 
         public static void setSegments(String segment) {
