@@ -22,7 +22,7 @@ Crisp Website ID is an UUID like e30a04ee-f81c-4935-b8d8-5fa55831b1c0
 Add the Crisp SDK in your dependencies:
 
 ```groovy
-compile 'im.crisp:crisp-sdk:0.1.13'
+compile 'im.crisp:crisp-sdk:0.1.14'
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
@@ -65,4 +65,5 @@ You can embed the CrispFragment in your Activity
 * `Crisp.Session.setData(HashMap<String, String>);`
 * `Crisp.Session.setSegments("segment");`
 * `Crisp.Session.setSegments("segment1", "segment2");`
+* `Crisp.Session.pushEvent("signup", JSONObject, "blue");`
 * `Crisp.Session.reset();`

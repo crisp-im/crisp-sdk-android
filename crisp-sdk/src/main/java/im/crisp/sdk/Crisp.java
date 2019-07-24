@@ -8,6 +8,7 @@ import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.Map;
 import java.util.UUID;
@@ -143,6 +144,14 @@ public class Crisp {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
+        }
+
+        public static void pushEvent(String name, JSONObject data, String color) {
+            CrispFragment.execute("window.$crisp.push([\"set\", \"session:event\", [[['" + name + "', " + data + ", '" +color +"']]]])");
+        }
+
+        public static void pushEvent(String name, JSONObject data) {
+            Crisp.Session.pushEvent(name, data, "blue");
         }
 
         public static void reset() {

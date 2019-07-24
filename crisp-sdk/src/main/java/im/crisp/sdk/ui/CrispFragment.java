@@ -369,7 +369,6 @@ public class CrispFragment extends Fragment {
             execute("window.CRISP_RUNTIME_CONFIG.locale = \"" + Crisp.getInstance().getLocale() + "\";");
         }
 
-
         execute("initialize()");
     }
 

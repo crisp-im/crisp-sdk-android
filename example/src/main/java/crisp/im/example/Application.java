@@ -1,5 +1,7 @@
 package crisp.im.example;
 
+import org.json.JSONObject;
+
 import im.crisp.sdk.Crisp;
 
 /**
@@ -13,5 +15,9 @@ public class Application extends android.app.Application {
 
         Crisp.initialize(this);
         Crisp.getInstance().setWebsiteId("7598bf86-9ebb-46bc-8c61-be8929bbf93d");
+
+
+        Crisp.User.setEmail("baptistejamin@gmail.com");
+        Crisp.Session.pushEvent("test", new JSONObject());
     }
 }
