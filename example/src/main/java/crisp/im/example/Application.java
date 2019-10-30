@@ -17,7 +17,7 @@ public class Application extends android.app.Application {
         Crisp.getInstance().setWebsiteId("7598bf86-9ebb-46bc-8c61-be8929bbf93d");
 
 
-        Crisp.User.setEmail("baptistejamin@gmail.com");
+        Crisp.User.setEmail("john.doe@gmail.com");
         Crisp.Session.pushEvent("test", new JSONObject());
     }
 }
