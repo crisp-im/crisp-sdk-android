@@ -22,6 +22,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     repositories {
+        google()
         jcenter()
         maven { url "https://jitpack.io" }
         maven { url 'http://oss.jfrog.org/artifactory/oss-snapshot-local/' }
@@ -29,7 +30,7 @@ android {
 }
 
 dependencies {
-
+    implementation("androidx.fragment:fragment:1.2.4")
 }
 
 apply from: 'bintray-publish.gradle'
