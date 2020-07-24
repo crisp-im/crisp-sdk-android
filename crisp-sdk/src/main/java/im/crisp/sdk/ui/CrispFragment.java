@@ -3,6 +3,7 @@ package im.crisp.sdk.ui;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -219,7 +220,6 @@ public class CrispFragment extends Fragment {
         settings.setDomStorageEnabled(true);
 
 
-
         // Enable pinch to zoom without the zoom buttons
         settings.setBuiltInZoomControls(true);
 
@@ -275,9 +275,11 @@ public class CrispFragment extends Fragment {
 
     protected void handleIntentToLink(String url) {
         try {
-            Intent intent= Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+            Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
             startActivity(intent);
         } catch (URISyntaxException e) {
+            e.printStackTrace();
+        } catch (ActivityNotFoundException e) {
             e.printStackTrace();
         }
     }
@@ -285,7 +287,11 @@ public class CrispFragment extends Fragment {
     protected void handleTelToLink(String url) {
         Intent intent = new Intent(Intent.ACTION_DIAL);
         intent.setData(Uri.parse(url));
-        startActivity(intent);
+        try {
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     protected void handleMailToLink(String url) {
@@ -330,7 +336,11 @@ public class CrispFragment extends Fragment {
             }
         }
 
-        startActivity(intent);
+        try {
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     static void callJavascript(String script) {
