@@ -1,1 +1,1 @@
-include ':example', ':crisp-sdk'
+include ':example'

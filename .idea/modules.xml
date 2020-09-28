@@ -2,9 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/crisp-sdk/crisp-sdk.iml" filepath="$PROJECT_DIR$/crisp-sdk/crisp-sdk.iml" />
-      <module fileurl="file://$PROJECT_DIR$/crisp-sdk-android.iml" filepath="$PROJECT_DIR$/crisp-sdk-android.iml" />
-      <module fileurl="file://$PROJECT_DIR$/example/example.iml" filepath="$PROJECT_DIR$/example/example.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/crisp-sdk-android-github.iml" filepath="$PROJECT_DIR$/.idea/modules/crisp-sdk-android-github.iml" group="crisp-sdk-android-github" />
+      <module fileurl="file://$PROJECT_DIR$/example/example.iml" filepath="$PROJECT_DIR$/example/example.iml" group="crisp-sdk-android-github/example" />
     </modules>
   </component>
 </project>
