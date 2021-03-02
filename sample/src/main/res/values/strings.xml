@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Crisp Sample</string>
+    <string name="button_activity_main">Launch Crisp</string>
+</resources>
