@@ -32,12 +32,29 @@ repositories {
 Add the Crisp SDK in your dependencies:
 
 ```groovy
-implementation 'im.crisp:crisp-sdk:1.0.0beta0'
+dependencies {
+    implementation 'im.crisp:crisp-sdk:1.0.1'
+}
+```
+
+Configure your app for multidex:
+```groovy
+android {
+    defaultConfig {
+        multiDexEnabled true
+    }
+}
+dependencies {
+    // If you're using AndroidX
+    implementation 'androidx.multidex:multidex:2.0.1'
+    // If you're not using AndroidX
+    implementation 'com.android.support:multidex:1.0.3'
+}
 ```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
 ```java
-public class Initializer extends Application {
+public class Initializer extends MultiDexApplication {
 
     @Override
     public void onCreate() {
@@ -45,7 +62,7 @@ public class Initializer extends Application {
 
         // Replace it with your WEBSITE_ID
         // Retrieve it using https://app.crisp.chat/website/[YOUR_WEBSITE_ID]/
-        Crisp.configure("7598bf86-9ebb-46bc-8c61-be8929bbf93d");
+        Crisp.configure(getApplicationContext(), "7598bf86-9ebb-46bc-8c61-be8929bbf93d");
     }
 }
 ```
