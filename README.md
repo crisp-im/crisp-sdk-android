@@ -10,13 +10,17 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
 [![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
 
 
-## Video Tutorial
+---
+
+**Quick video tutorial:**
+
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=vb1F23uRkEo">
     <img alt="Play Introduction Video" src="https://img.youtube.com/vi/vb1F23uRkEo/0.jpg" width="560">
   </a>
 </p>
+---
 
 ## Get your website ID
 
