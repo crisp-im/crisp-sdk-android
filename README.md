@@ -12,7 +12,11 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
 
 ## Video Tutorial
 
-[![Video Tutorial](https://img.youtube.com/vi/vb1F23uRkEo/0.jpg)]https://www.youtube.com/watch?v=vb1F23uRkEo)
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=vb1F23uRkEo">
+    <img alt="Play Introduction Video" src="https://img.youtube.com/vi/vb1F23uRkEo/0.jpg" width="560">
+  </a>
+</p>
 
 ## Get your website ID
 
