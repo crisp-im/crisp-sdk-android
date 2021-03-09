@@ -9,6 +9,11 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
  [ ![Download](https://api.bintray.com/packages/crispim/crisp-maven/crisp-sdk-android/images/download.svg) ](https://bintray.com/crispim/crisp-maven/crisp-sdk-android/_latestVersion)
 [![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
 
+
+## Video Tutorial
+
+[![Video Tutorial](https://img.youtube.com/vi/vb1F23uRkEo/0.jpg)]https://www.youtube.com/watch?v=vb1F23uRkEo)
+
 ## Get your website ID
 
 Your website ID can be found in the Crisp App URL:
