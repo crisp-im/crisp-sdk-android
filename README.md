@@ -9,7 +9,18 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
  [ ![Download](https://api.bintray.com/packages/crispim/crisp-maven/crisp-sdk-android/images/download.svg) ](https://bintray.com/crispim/crisp-maven/crisp-sdk-android/_latestVersion)
 [![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
 
-## Get your website ID
+## How to use
+
+### Video tutorial
+
+
+<p align="left">
+  <a href="https://www.youtube.com/watch?v=g5H0F-eTWwc">
+    <img alt="Play Introduction Video" src="https://img.youtube.com/vi/g5H0F-eTWwc/0.jpg" width="560">
+  </a>
+</p>
+
+### 1. Get your Website ID
 
 Your website ID can be found in the Crisp App URL:
 
@@ -17,7 +28,7 @@ Your website ID can be found in the Crisp App URL:
 
 Crisp Website ID is an UUID like e30a04ee-f81c-4935-b8d8-5fa55831b1c0
 
-## Setup
+### 2. Setup Bintray
 
 Add our bintray in your repositories
 ```groovy
@@ -29,6 +40,8 @@ repositories {
 }
 ```
 
+### 3. Add Crisp Dependency Bintray
+
 Add the Crisp SDK in your dependencies:
 
 ```groovy
@@ -36,6 +49,8 @@ dependencies {
     implementation 'im.crisp:crisp-sdk:1.0.1'
 }
 ```
+
+### 4. Setup Multidex 
 
 Configure your app for multidex:
 ```groovy
@@ -52,6 +67,9 @@ dependencies {
 }
 ```
 
+### 5. Initiate Appplicatation class
+
+
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
 ```java
 public class Initializer extends MultiDexApplication {
@@ -67,7 +85,8 @@ public class Initializer extends MultiDexApplication {
 }
 ```
 
-## Include Crisp in your activities
+### 5. Include Crisp in your Activity
+
 
 You can for instance start Crisp after a click on a button
 ```java
