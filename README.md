@@ -67,7 +67,7 @@ dependencies {
 }
 ```
 
-### 5. Initiate Appplicatation class
+### 5. Initiate Application class
 
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
