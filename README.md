@@ -46,11 +46,11 @@ Add the Crisp SDK in your dependencies:
 
 ```groovy
 dependencies {
-    implementation 'im.crisp:crisp-sdk:1.0.1'
+    implementation 'im.crisp:crisp-sdk:1.0.2'
 }
 ```
 
-### 4. Setup Multidex 
+### 4. Setup Multidex
 
 Configure your app for multidex:
 ```groovy
@@ -96,4 +96,23 @@ startActivity(crispIntent);
 
 ## Availables APIs:
 
-Work in progresss
+* `CrispSDK.configure(Context applicationContext, String websiteID)`: configures the next session with the websiteID
+* `CrispSDK.setTokenID(String tokenID)`: assigns the next session with a tokenID
+* `CrispSDK.resetChatSession()`: reset the session
+
+**Important notes:** if a chat is ongoing, calls to `Crisp.configure`, `Crisp.setTokenID` & `Crisp.resetChatSession` methods are postpone until the `ChatActivity` is closed either by the close or the back button.
+
+* `CrispSDK.setUserAvatar(String avatar)`: sets the user avatar
+* `CrispSDK.setUserCompany(Company company)`: sets the user company
+* `CrispSDK.setUserEmail(String email)`: sets the user email _(note: if email is invalid, this method will return false and the value will not be set)_
+* `CrispSDK.setUserNickname(String nickname)`: sets the user name
+* `CrispSDK.setUserPhone(String phone)`: sets the user phone _(note: if phone is invalid, this method will return false and the value will not be set)_
+
+
+* `CrispSDK.setSessionBool(String key, boolean value)`: sets a session data bool
+* `CrispSDK.setSessionInt(String key, int value)`: sets a session data int
+* `CrispSDK.setSessionString(String key, String value)`: sets a session data string
+* `CrispSDK.setSessionSegment(String segment)`: sets a session segment
+* `CrispSDK.pushSessionEvent(SessionEvent event)`: pushes a session event
+
+**Important notes:** If a chat is ongoing, calls to `Crisp.setUser`, `Crisp.setSession` & `Crisp.pushSessionEvent` methods are performed right away. Otherwise, they will be performed when the session is joined unless either `Crisp.resetChatSession` or `Crisp.configure` (with a different `websiteID` than the current) has been called since.
