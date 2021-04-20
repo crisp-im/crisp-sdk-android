@@ -46,7 +46,7 @@ Add the Crisp SDK in your dependencies:
 
 ```groovy
 dependencies {
-    implementation 'im.crisp:crisp-sdk:1.0.2'
+    implementation 'im.crisp:crisp-sdk:1.0.3'
 }
 ```
 
