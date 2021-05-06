@@ -28,25 +28,27 @@ Your website ID can be found in the Crisp App URL:
 
 Crisp Website ID is an UUID like e30a04ee-f81c-4935-b8d8-5fa55831b1c0
 
-### 2. Setup Bintray
+### 2. Setup Repos
 
 Add our bintray in your repositories
 ```groovy
 repositories {
-    // Keep your prevous repositories
-    maven {
-        url 'https://dl.bintray.com/crispim/crisp-maven'
-    }
+    // Keep your previous repositories
+    mavenCentral()
+    // Even with jcenter end of life, we still need it because we're using exoplayer 2.13.0 for compatibility issue,
+    // which is not hosted on Google nor Central maven repos (see https://github.com/google/ExoPlayer/issues/5246)
+    jcenter()
+
 }
 ```
 
-### 3. Add Crisp Dependency Bintray
+### 3. Add Crisp Dependency
 
 Add the Crisp SDK in your dependencies:
 
 ```groovy
 dependencies {
-    implementation 'im.crisp:crisp-sdk:1.0.3'
+    implementation 'im.crisp:crisp-sdk:1.0.4'
 }
 ```
 
@@ -69,7 +71,6 @@ dependencies {
 
 ### 5. Initiate Application class
 
-
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
 ```java
 public class Initializer extends MultiDexApplication {
@@ -86,7 +87,6 @@ public class Initializer extends MultiDexApplication {
 ```
 
 ### 5. Include Crisp in your Activity
-
 
 You can for instance start Crisp after a click on a button
 ```java
