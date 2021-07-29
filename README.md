@@ -1,13 +1,19 @@
-![Crisp](https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/master/docs/img/logo_blue.png)
+```
+allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+ 
+ 
 
-Chat with app users, integrate your favorite tools, and deliver a great customer experience.
-
-# Crisp Android SDK
-
-![Crisp screenshot](https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/master/docs/img/crisp_screenshot.png)
-
- [ ![Download](https://api.bintray.com/packages/crispim/crisp-maven/crisp-sdk-android/images/download.svg) ](https://bintray.com/crispim/crisp-maven/crisp-sdk-android/_latestVersion)
-[![Twitter](https://img.shields.io/badge/twitter-@crisp_im-blue.svg?style=flat)](http://twitter.com/crisp_im)
+	dependencies {
+	        implementation 'com.github.nilevia:crisp-sdk-android:1.0.5-niel'
+	}
+```
+ 
+ 
 
 ## Get your website ID
 
@@ -20,10 +26,6 @@ Crisp Website ID is an UUID like e30a04ee-f81c-4935-b8d8-5fa55831b1c0
 ## Setup
 
 Add the Crisp SDK in your dependencies:
-
-```groovy
-compile 'im.crisp:crisp-sdk:0.1.14'
-```
 
 Initialize the library in your [Application subclass](http://developer.android.com/reference/android/app/Application.html):
 ```java
