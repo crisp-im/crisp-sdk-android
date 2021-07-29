@@ -110,7 +110,7 @@ public class CrispFragment extends Fragment {
 
                 if (url.startsWith("intent")) {
                     handleIntentToLink(url);
-                    return false;
+                    return true;
                 }
 
 
