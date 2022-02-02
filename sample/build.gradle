@@ -18,15 +18,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'androidx.multidex:multidex:2.0.1'
 
-    implementation 'im.crisp:crisp-sdk:1.0.8'
+    implementation 'im.crisp:crisp-sdk:1.0.9'
 }
