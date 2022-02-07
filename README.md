@@ -15,7 +15,7 @@ Chat with app users, integrate your favorite tools, and deliver a great customer
 
 ## Credits
 
-Crisp Android SDK is owned and maintained by [Crisp IM, SARL](https://crisp.chat/en/). You can chat with us on [crisp](https://crisp.chat) or follow us on Twitter at [Crisp_im](http://twitter.com/crisp_im)
+Crisp Android SDK is owned and maintained by [Crisp IM SAS](https://crisp.chat/en/). You can chat with us on [crisp](https://crisp.chat) or follow us on Twitter at [Crisp_im](http://twitter.com/crisp_im)
 
 ## License
 
