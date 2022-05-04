@@ -5,7 +5,7 @@ android {
     buildToolsVersion "31.0.0"
     defaultConfig {
         applicationId "im.crisp.sample"
-        minSdkVersion 19
+        minSdkVersion 21
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
@@ -24,5 +24,5 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'androidx.multidex:multidex:2.0.1'
 
-    implementation 'im.crisp:crisp-sdk:1.0.10'
+    implementation 'im.crisp:crisp-sdk:1.0.11'
 }
