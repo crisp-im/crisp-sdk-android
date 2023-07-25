@@ -3,9 +3,12 @@ apply plugin: 'com.android.application'
 android {
     namespace 'im.crisp.sample'
     compileSdkVersion 33
-    buildToolsVersion "33.0.0"
+    buildToolsVersion "33.0.2"
+
     defaultConfig {
         applicationId "im.crisp.sample"
+        compileSdk 33
+        compileSdkExtension 5
         minSdkVersion 21
         targetSdkVersion 33
         versionCode 1
@@ -22,8 +25,8 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.multidex:multidex:2.0.1'
 
-    implementation 'im.crisp:crisp-sdk:1.0.14'
+    implementation 'im.crisp:crisp-sdk:1.0.15'
 }
