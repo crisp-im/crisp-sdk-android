@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Would only be relevant if ExoPlayer's DownloadService was used -->
+    <issue id="NotificationPermission">
+        <ignore regexp="exoplayer.*DownloadService" />
+    </issue>
+</lint>
