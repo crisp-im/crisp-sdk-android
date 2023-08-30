@@ -4,7 +4,7 @@ android {
     namespace 'im.crisp.sample'
     compileSdk 33
     buildToolsVersion = "33.0.2"
-
+    
     defaultConfig {
         applicationId "im.crisp.sample"
         compileSdk 33
@@ -13,7 +13,7 @@ android {
         targetSdkVersion 33
         versionCode 1
         versionName "1.0"
-
+        
         multiDexEnabled true
     }
     buildTypes {
@@ -28,6 +28,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'com.google.android.material:material:1.9.0'
-
+    
     implementation 'im.crisp:crisp-sdk:1.0.16'
 }
