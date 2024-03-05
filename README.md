@@ -1,11 +1,8 @@
 ![Crisp](./.github/logo_blue.png)
 
-Crisp is a multichannel customer support software that centralizes more than 10 different channels into one place. 
-
-Among those, chat support is a prominent channel companies choose to offer real-time customer support. 
-
-With Crisp native mobile chat SDK for Android, companies can add a seamless support chat experience to their native mobile app.
-
+Crisp is a multichannel customer support software that centralizes more than 10 different channels into one place.<br />
+Among those, chat support is a prominent channel companies choose to offer real-time customer support.<br />
+With Crisp native mobile chat SDK for Android, companies can add a seamless support chat experience to their native mobile app.<br />
 The chat widget also comes with help articles, AI chatbot builder and many other features built to help companies improve their customer support experience.
 
 # Crisp Chat SDK for Android
@@ -25,14 +22,14 @@ The chat widget also comes with help articles, AI chatbot builder and many other
 
 ## Features
 
-Willing to see what Crisp web chat widget can offer to help to improve customer support? 
-
+Willing to see what Crisp web chat widget can offer to help to improve customer support?<br />
 [Click here](https://crisp.chat/en/livechat/) to access a detailed and comprehensive list of features for Crisp chat software.
 
 ## Credits
 
-Crisp Android SDK is owned and maintained by [Crisp IM SAS](https://crisp.chat/en/). You can chat with us on [crisp](https://crisp.chat) or follow us on Twitter at [Crisp_im](http://twitter.com/crisp_im)
+Crisp Android SDK is owned and maintained by [Crisp IM SAS](https://crisp.chat/en/).<br />
+You can chat with us on [crisp](https://crisp.chat) or follow us on Twitter at [Crisp_im](http://twitter.com/crisp_im).
 
 ## License
 
-Crisp Android SDK is under Copyright license. See [LICENSE](https://github.com/crisp-im/crisp-sdk-android?tab=License-1-ov-file) for more details.
+Crisp Android SDK is under Copyright license, see [LICENSE](https://github.com/crisp-im/crisp-sdk-android?tab=License-1-ov-file) for more details.
