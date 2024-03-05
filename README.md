@@ -22,8 +22,7 @@ The chat widget also comes with help articles, AI chatbot builder and many other
 
 ## Features
 
-Willing to see what Crisp web chat widget can offer to help to improve customer support?<br />
-[Click here](https://crisp.chat/en/livechat/) to access a detailed and comprehensive list of features for Crisp chat software.
+Willing to see what Crisp web chat widget can offer to help to improve customer support? [Click here](https://crisp.chat/en/livechat/) to access a detailed and comprehensive list of features for Crisp chat software.
 
 ## Credits
 
