@@ -1,8 +1,9 @@
 ![Crisp](./.github/logo_blue.png)
 
-Crisp is a multichannel customer support software that centralizes more than 10 different channels into one place.<br />
-Among those, chat support is a prominent channel companies choose to offer real-time customer support.<br />
-With Crisp native mobile chat SDK for Android, companies can add a seamless support chat experience to their native mobile app.<br />
+Crisp is a multichannel customer support software that centralizes more than 10 different channels into one place. Among those, chat support is a prominent channel companies choose to offer real-time customer support.
+
+With Crisp native mobile chat SDK for Android, companies can add a seamless support chat experience to their native mobile app.
+
 The chat widget also comes with help articles, AI chatbot builder and many other features built to help companies improve their customer support experience.
 
 # Crisp Chat SDK for Android
