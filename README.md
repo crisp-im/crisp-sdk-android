@@ -117,7 +117,7 @@ Intent crispIntent = new Intent(this, ChatActivity.class);
 startActivity(crispIntent);
 ```
 
-👉 For more details, please go to the Crisp Developer Hub to [access the documentation on the Android SDK](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) or got to our Wiki to see [Available APIs](https://github.com/crisp-im/crisp-sdk-android/wiki/2.-Available-APIs).
+👉 For more details, please go to the Crisp Developer Hub to [access the documentation on the Android SDK](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) or go to our Wiki to see [Available APIs](https://github.com/crisp-im/crisp-sdk-android/wiki/2.-Available-APIs).
 
 # Examples of companies using Crisp Chat Android SDK
 
