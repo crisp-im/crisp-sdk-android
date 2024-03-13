@@ -123,7 +123,6 @@ startActivity(crispIntent);
 # Examples of companies using Crisp Chat Android SDK
 
 - [pony](https://getapony.com),
-- [jomo](https://jomo.so),
 - [bibit](https://bibit.id/).
 
 
