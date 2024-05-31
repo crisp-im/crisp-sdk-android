@@ -120,6 +120,28 @@ startActivity(crispIntent);
 
 👉 For more details, please go to the Crisp Developer Hub to [access the documentation on the Android SDK](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) or go to our Wiki to see [Available APIs](https://github.com/crisp-im/crisp-sdk-android/wiki/2.-Available-APIs).
 
+## 6. Add Crisp authority and path to your FileProvider if any
+
+#### AndroidManifest.xml
+
+```xml
+<provider android:name="androidx.core.content.FileProvider"
+  android:authorities="${applicationId}.fileprovider;${applicationId}.im.crisp.client.uploadfileprovider"
+  android:exported="false"
+  android:grantUriPermissions="true"
+  tools:replace="android:authorities">
+  <meta-data android:name="android.support.FILE_PROVIDER_PATHS" 
+    android:resource="@xml/file_paths"
+    tools:replace="android:resource" />
+</provider>
+```
+
+#### res/xml/file_paths.xml
+
+```xml
+<files-path name="crisp_sdk_attachments" path="im.crisp.client/attachments/" />
+```
+
 # Examples of companies using Crisp Chat Android SDK
 
 - [pony](https://getapony.com),
