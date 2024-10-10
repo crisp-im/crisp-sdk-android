@@ -2,7 +2,7 @@ package im.crisp.sample;
 
 import androidx.multidex.MultiDexApplication;
 
-import im.crisp.client.Crisp;
+import im.crisp.client.external.Crisp;
 
 /**
  * Created by baptistejamin on 23/05/2017.
