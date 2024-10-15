@@ -77,7 +77,7 @@ Add the Crisp SDK in your dependencies:
 
 ```java
 dependencies {
-    implementation 'im.crisp:crisp-sdk:2.0.4'
+    implementation 'im.crisp:crisp-sdk:2.0.5'
 }
 ```
 
