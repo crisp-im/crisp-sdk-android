@@ -77,7 +77,7 @@ Add the Crisp SDK in your dependencies:
 
 ```java
 dependencies {
-    implementation 'im.crisp:crisp-sdk:2.0.5'
+    implementation 'im.crisp:crisp-sdk:2.0.7'
 }
 ```
 
@@ -120,7 +120,11 @@ startActivity(crispIntent);
 
 👉 For more details, please go to the Crisp Developer Hub to [access the documentation on the Android SDK](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) or go to our Wiki to see [Available APIs](https://github.com/crisp-im/crisp-sdk-android/wiki/2.-Available-APIs).
 
-## 6. Add Crisp authority and path to your FileProvider if any
+## 6. Configure your app to receive Crisp notifications
+
+This step is fully covered in the [Notifications](https://github.com/crisp-im/crisp-sdk-android/wiki/3.-Notifications) section.
+
+## 7. Add Crisp authority and path to your FileProvider if any
 
 #### AndroidManifest.xml
 
