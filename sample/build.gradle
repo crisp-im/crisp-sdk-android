@@ -28,5 +28,5 @@ dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     
-    implementation 'im.crisp:crisp-sdk:2.0.7'
+    implementation 'im.crisp:crisp-sdk:2.0.8'
 }
