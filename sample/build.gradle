@@ -4,13 +4,13 @@ plugins {
 
 android {
     namespace 'im.crisp.sample'
-    compileSdk 34
-    compileSdkExtension 12
+    compileSdk 35
+    compileSdkExtension 14
 
     defaultConfig {
         applicationId "im.crisp.sample"
         minSdk 21
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
         
@@ -27,6 +27,7 @@ android {
 dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
     
-    implementation 'im.crisp:crisp-sdk:2.0.10'
+    implementation 'im.crisp:crisp-sdk:2.0.12'
 }

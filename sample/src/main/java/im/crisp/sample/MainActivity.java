@@ -7,6 +7,8 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.appbar.MaterialToolbar;
+
 import im.crisp.client.external.ChatActivity;
 import im.crisp.client.external.Crisp;
 import im.crisp.client.external.EventsCallback;
@@ -46,8 +48,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+        MaterialToolbar toolbar = findViewById(R.id.topAppBar);
+        setSupportActionBar(toolbar);
         findViewById(R.id.crisp_button).setOnClickListener(v -> {
-
             Intent crispIntent = new Intent(MainActivity.this, ChatActivity.class);
             startActivity(crispIntent);
         });
