@@ -148,9 +148,9 @@ This step is fully covered in the [Notifications](https://github.com/crisp-im/cr
 
 # Examples of companies using Crisp Chat Android SDK
 
-- [pony](https://getapony.com),
-- [bibit](https://bibit.id/).
-
+- [airWallet](https://airwallet.net/),
+- [bibit](https://bibit.id/),
+- [pony](https://getapony.com).
 
 # Credits
 
