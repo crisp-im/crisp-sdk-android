@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
 
+import java.util.Map;
+
 import im.crisp.client.external.ChatActivity;
 import im.crisp.client.external.Crisp;
 import im.crisp.client.external.EventsCallback;
@@ -40,6 +42,27 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onMessageReceived(@NonNull final Message message) {
             Log.i(TAG, "onMessageReceived: " + message.toJSON());
+        }
+
+        @Override
+        public void onNotificationReceived(@NonNull Map<String, String> data)
+        {
+            StringBuilder log = new StringBuilder("onNotificationReceived: {");
+            for (Map.Entry<String, String> tuple : data.entrySet())
+            {
+                log     .append('"')
+                        .append(tuple.getKey())
+                        .append("\":\"")
+                        .append(tuple.getValue())
+                        .append("\",");
+            }
+            int lastCommaIndex = log.lastIndexOf(",");
+            if (lastCommaIndex > -1)
+            {
+                log.deleteCharAt(lastCommaIndex);
+            }
+            log.append('}');
+            Log.d(TAG, log.toString());
         }
     };
 
