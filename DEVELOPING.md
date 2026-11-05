@@ -157,11 +157,11 @@ As for [npm credentials](#npm-credentials), store them in the macOS Keychain and
 The `Build, sign & deploy SDK` workflow (`.github/workflows/release.yml`) reads them from the secrets of the `maven-central` environment, so only that job can read them (add required reviewers to the environment to approve each release). It also needs `NPM_PULL_TOKEN` (the `.npmrc` contents, see [npm credentials](#npm-credentials)) to generate the `client` code bundled into the SDK. `gh secret set` prompts for the value, or reads it from stdin (the armored key is stored as is, no base64 needed):
 
 ```sh
-gh secret set CRISP_SDK_SIGNING_KEY_ID --repo crisp-im/crisp-sdk-android --env maven-central
+gh secret set CRISP_SDK_ANDROID_SIGNING_KEY_ID --repo crisp-im/crisp-sdk-android --env maven-central
 gpg --armor --export-secret-keys <keyId> | gh secret set CRISP_SDK_SIGNING_KEY --repo crisp-im/crisp-sdk-android --env maven-central
-gh secret set CRISP_SDK_SIGNING_PASSWORD --repo crisp-im/crisp-sdk-android --env maven-central
-gh secret set CRISP_SDK_MAVEN_CENTRAL_USER --repo crisp-im/crisp-sdk-android --env maven-central
-gh secret set CRISP_SDK_MAVEN_CENTRAL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central
+gh secret set CRISP_SDK_ANDROID_SIGNING_PASSWORD --repo crisp-im/crisp-sdk-android --env maven-central
+gh secret set CRISP_SDK_ANDROID_MAVEN_CENTRAL_USER --repo crisp-im/crisp-sdk-android --env maven-central
+gh secret set CRISP_SDK_ANDROID_MAVEN_CENTRAL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central
 gh secret set NPM_PULL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central < path/to/crisp.npmrc
 ```
 

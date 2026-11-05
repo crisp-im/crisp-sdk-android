@@ -58,11 +58,11 @@ jobs:
       # Same task as locally: checks the env vars, then `./gradlew clean :sdk:publish && ./gradlew :sdk:jreleaserDeploy`
       - name: Build, sign & deploy
         env:
-          ORG_GRADLE_PROJECT_crispSdkSigningKeyId: ${{ secrets.CRISP_SDK_SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_crispSdkSigningKey: ${{ secrets.CRISP_SDK_SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_crispSdkSigningPassword: ${{ secrets.CRISP_SDK_SIGNING_PASSWORD }}
-          ORG_GRADLE_PROJECT_crispSdkMavenCentralUser: ${{ secrets.CRISP_SDK_MAVEN_CENTRAL_USER }}
-          ORG_GRADLE_PROJECT_crispSdkMavenCentralToken: ${{ secrets.CRISP_SDK_MAVEN_CENTRAL_TOKEN }}
+          ORG_GRADLE_PROJECT_crispSdkSigningKeyId: ${{ secrets.CRISP_SDK_ANDROID_SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_crispSdkSigningKey: ${{ secrets.CRISP_SDK_ANDROID_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_crispSdkSigningPassword: ${{ secrets.CRISP_SDK_ANDROID_SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_crispSdkMavenCentralUser: ${{ secrets.CRISP_SDK_ANDROID_MAVEN_CENTRAL_USER }}
+          ORG_GRADLE_PROJECT_crispSdkMavenCentralToken: ${{ secrets.CRISP_SDK_ANDROID_MAVEN_CENTRAL_TOKEN }}
         run: mise run publish-sdk
 
       # Signed artifacts as uploaded, and JReleaser logs (secrets are masked) to investigate a failed deploy
