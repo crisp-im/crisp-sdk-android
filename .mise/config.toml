@@ -1,6 +1,6 @@
 [env]
 CRISP_CLIENT_NPM_PACKAGE = "@crisp-im/crisp-client"
-CRISP_CLIENT_MODULE_DIR = "{{env.PWD}}/client"
+CRISP_CLIENT_MODULE_DIR = "{{config_root}}/client"
 CRISP_CLIENT_ASSETS_DIR = "$CRISP_CLIENT_MODULE_DIR/src/main/assets"
 CRISP_CLIENT_PACKAGE_DIR = "$CRISP_CLIENT_ASSETS_DIR/crisp-client"
 CRISP_CLIENT_SOURCE_DIR = "$CRISP_CLIENT_MODULE_DIR/src/main/java/im/crisp/client"
