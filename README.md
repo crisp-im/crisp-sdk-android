@@ -77,74 +77,72 @@ Add the Crisp SDK in your dependencies:
 
 ```java
 dependencies {
-    implementation 'im.crisp:crisp-sdk:2.0.25'
+    implementation("im.crisp:crisp-sdk:3.0.0beta1")
 }
 ```
 
-## 3. Setup multidex
+## 3. Present the Chatbox
 
-Configure your app for multidex:
+Below is a minimal Compose sample implementation presenting both modal sheets with Compose `CrispBottomSheetModal` and `CrispBottomSheetDialogFragment` shown by the `CrispChat.show` shortcut.
 
-```java
-android {
-    defaultConfig {
-        multiDexEnabled true
+You can also embed Crisp in your own layouts with `CrispFragment` or Compose `CrispChatbox` and `CrispChatboxView`.
+
+```kotlin
+// Replace YOUR_WEBSITE_ID with your own
+
+import im.crisp.sdk.api.CrispConfig
+import im.crisp.sdk.ui.CrispBottomSheetModal
+import im.crisp.sdk.ui.CrispChat
+
+class MainComposeActivity : FragmentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            AppTheme {
+                App()
+            }
+        }
     }
 }
-dependencies {
-    // If you're using AndroidX
-    implementation 'androidx.multidex:multidex:2.0.1'
-    // If you're not using AndroidX
-    implementation 'com.android.support:multidex:1.0.3'
+
+@Composable
+fun App() {
+    val context = LocalContext.current
+    var showCrispSheet by rememberSaveable { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(onClick = { showCrispSheet = true }) {
+            Text("Open Crisp in Compose Modal Sheet")
+        }
+        Button(onClick = {
+            val activity = context as FragmentActivity
+            CrispChat.show(
+                activity = activity,
+                websiteId = "YOUR_WEBSITE_ID"
+            )
+        }) {
+            Text("Open Crisp in Fragment Modal Sheet")
+        }
+    }
+
+    if (showCrispSheet) {
+        CrispBottomSheetModal(
+            config = CrispConfig(websiteId = "YOUR_WEBSITE_ID"),
+            onDismissRequest = { showCrispSheet = false }
+        )
+    }
 }
 ```
 
-## 4. Initiate
-
-Initialize the library:
-
-```java
-// Replace it with your WEBSITE_ID
-// Retrieve it using https://app.crisp.chat/website/[YOUR_WEBSITE_ID]/
-Crisp.configure(getApplicationContext(), "7598bf86-9ebb-46bc-8c61-be8929bbf93d");
-```
-
-## 5. Include Crisp in your activity
-
-You can for instance start Crisp after a click on a button:
-
-```java
-Intent crispIntent = new Intent(this, ChatActivity.class);
-startActivity(crispIntent);
-```
-
-👉 For more details, please go to the Crisp Developer Hub to [access the documentation on the Android SDK](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) or go to our Wiki to see [Available APIs](https://github.com/crisp-im/crisp-sdk-android/wiki/2.-Available-APIs).
-
-## 6. Configure your app to receive Crisp notifications
-
-This step is fully covered in the [Notifications](https://github.com/crisp-im/crisp-sdk-android/wiki/3.-Notifications) section.
-
-## 7. Add Crisp authority and path to your FileProvider if any
-
-#### AndroidManifest.xml
-
-```xml
-<provider android:name="androidx.core.content.FileProvider"
-  android:authorities="${applicationId}.fileprovider;${applicationId}.im.crisp.client.uploadfileprovider"
-  android:exported="false"
-  android:grantUriPermissions="true"
-  tools:replace="android:authorities">
-  <meta-data android:name="android.support.FILE_PROVIDER_PATHS" 
-    android:resource="@xml/file_paths"
-    tools:replace="android:resource" />
-</provider>
-```
-
-#### res/xml/file_paths.xml
-
-```xml
-<files-path name="crisp_sdk_attachments" path="im.crisp.client/attachments/" />
-```
+# Documentation
+👉 For more details, please go to: 
+- [Crisp Developer Hub — Android SDK guide](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/),
+- [Dokka reference documentation](https://crisp-im.github.io/crisp-sdk-android/).
 
 # Examples of companies using Crisp Chat Android SDK
 

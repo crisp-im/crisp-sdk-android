@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="?attr/actionBarSize"
+            app:title="Crisp"
+            app:navigationIcon="@drawable/ic_navigation" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/fragment_container_view"
+            android:name="im.crisp.sdk.ui.CrispFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/crisp_sdk_chatbox_background"
+            app:crisp_sdk_website_id="@string/crisp_website_id"
+            app:crisp_sdk_edge_to_edge="bottom" />
+
+        <include layout="@layout/view_fab_controller" />
+
+    </FrameLayout>
+
+</androidx.appcompat.widget.LinearLayoutCompat>
+

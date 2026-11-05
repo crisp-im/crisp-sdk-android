@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!-- TODO: AVOID optionals for Android < 9 -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <link rel="stylesheet" href="./crisp-client.css" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      #crisp {
+        position: absolute;
+        inset: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <crisp-widget
+      id="crisp"
+      website-id='{{WEBSITE_ID}}'
+      session-id='{{SESSION_ID}}'
+      token-id='{{TOKEN_ID}}'
+      mobile-sdk='{{MOBILE_SDK_ENABLED}}'
+      browser-locales='{{USER_LOCALES}}'
+      presentation='{{PRESENTATION}}'
+      url-client-assets='{{ASSETS_URL}}'
+      platform-name='crisp-sdk-android@v2'
+      platform-signature-key='1j/35/2a/2r/39/1t/2r/32/24/35/1w/26/3b/34/2v/1y'
+    ></crisp-widget>
+
+    <script>
+      // Native bridge, see WebViewBridge. Events are fire-and-forget: { kind, channel, body }.
+      function sendEvent(eventType, payload) {
+        try {
+          CrispNative.postMessage(
+            JSON.stringify({
+              kind: 'event',
+              channel: eventType,
+              body: JSON.stringify(payload || {}),
+            })
+          )
+        } catch (err) {
+          console.error('[CrispNative] sendEvent failed for', eventType, err)
+        }
+      }
+
+      // Installed synchronously before the module script below so that even
+      // the module's own `import { … }` line — which runs as part of module
+      // evaluation — surfaces as a typed native event instead of silently
+      // aborting the whole script.
+      (() => {
+        window.addEventListener('error', (event) => {
+          sendEvent('onScriptError', {
+            source: 'error',
+            message: event.message || (event.error && event.error.message) || 'Unknown error',
+            filename: event.filename || null,
+            line: typeof event.lineno === 'number' ? event.lineno : null,
+            col: typeof event.colno === 'number' ? event.colno : null,
+            stack: (event.error && event.error.stack) || null,
+          })
+        })
+
+        window.addEventListener('unhandledrejection', (event) => {
+          const reason = event.reason
+          const message =
+            (reason && reason.message) ||
+            (typeof reason === 'string' ? reason : 'Unhandled promise rejection')
+
+          sendEvent('onScriptError', {
+            source: 'unhandledrejection',
+            message: message,
+            filename: null,
+            line: null,
+            col: null,
+            stack: (reason && reason.stack) || null,
+          })
+        })
+      })()
+    </script>
+
+    <script type="module">
+      import {
+        connectLogger,
+        injectMessage,
+        registerCrispWidget,
+      } from './crisp-client.js'
+
+      registerCrispWidget()
+
+      globalThis.injectMessageEnvelope = function (message) {
+        // Inject per-choice handlers for picker messages so the Swift code receives a callback
+        // when the user taps a button.
+        if (
+          message &&
+          message.type === 'picker' &&
+          message.content &&
+          Array.isArray(message.content.choices)
+        ) {
+          const fingerprint = message.fingerprint
+          const pickerId = message.content.id
+
+          message.content.choices = message.content.choices.map((choice) => ({
+            ...choice,
+            handler: () => {
+              sendEvent('onPickerClick', {
+                fingerprint: fingerprint,
+                picker_id: pickerId,
+                choice_value: choice.value,
+              })
+            },
+          }))
+        }
+        return injectMessage(message)
+      }
+
+      connectLogger((level, ns, value) => {
+        let stringified
+        try {
+          if (
+            Array.isArray(value) &&
+            value.every((v) => v === null || (typeof v !== 'object' && typeof v !== 'function'))
+          ) {
+            stringified = value.map(String).join(', ')
+          } else if (typeof value === 'string') {
+            stringified = value
+          } else {
+            stringified = JSON.stringify(value)
+          }
+        } catch (_err) {
+          stringified = String(value)
+        }
+        sendEvent('onLog', { level: level, ns: ns, value: stringified })
+      })
+    </script>
+
+    <script type="module">
+      {{CRISP_CLIENT_JS}}
+    </script>
+  </body>
+</html>

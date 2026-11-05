@@ -1,0 +1,60 @@
+# Generates the SDK documentation from KDoc with Dokka and publishes it to GitHub Pages.
+# Requires Settings > Pages > Build and deployment > Source to be set to "GitHub Actions".
+name: Build & Publish documentation
+
+on:
+  # Only manually for the moment
+  #push:
+  #  branches:
+  #    - beta
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Publish documentation from the `beta` branch for the moment,
+          # will move to `master` when released
+          ref: beta
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate documentation
+        run: ./gradlew :sdk:dokkaGeneratePublicationHtml
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: sdk/build/dokka/html
+
+  publish:
+    name: Publish Documentation
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

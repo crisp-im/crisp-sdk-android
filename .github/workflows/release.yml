@@ -1,0 +1,77 @@
+# Builds, signs and uploads the SDK to Maven Central, to check and publish from the Central Portal
+# (https://central.sonatype.com/publishing/deployments), or as a snapshot if `jreleaserSnapshot` is `true`.
+# The version is `jreleaserVersion` in `gradle.properties`, from the `beta` branch for the moment.
+# Requires the secrets of the `maven-central` environment (see DEVELOPING.md).
+name: Build, sign & deploy SDK
+
+on:
+  # Only manually for the moment
+  #push:
+  #  branches:
+  #    - beta
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never runs two releases at once, nor cancels one in progress
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, sign & deploy SDK
+    runs-on: ubuntu-latest
+    environment: maven-central
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Still in `beta` branch for the moment,
+          # will move to `master` once released
+          ref: beta
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up mise
+        uses: jdx/mise-action@v2
+
+      - name: Trust mise config
+        run: mise trust
+
+      # The `client` code bundled into the SDK is generated and not versioned (npm, jq and tar come with the runner)
+      - name: Fetch Web client and generate strings
+        env:
+          NPM_PULL_TOKEN: ${{ secrets.NPM_PULL_TOKEN }}
+        run: |
+          mise run fetch-crisp-client
+          mise run generate-strings
+
+      # Same task as locally: checks the env vars, then `./gradlew clean :sdk:publish && ./gradlew :sdk:jreleaserDeploy`
+      - name: Build, sign & deploy
+        env:
+          ORG_GRADLE_PROJECT_crispSdkSigningKeyId: ${{ secrets.CRISP_SDK_SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_crispSdkSigningKey: ${{ secrets.CRISP_SDK_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_crispSdkSigningPassword: ${{ secrets.CRISP_SDK_SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_crispSdkMavenCentralUser: ${{ secrets.CRISP_SDK_MAVEN_CENTRAL_USER }}
+          ORG_GRADLE_PROJECT_crispSdkMavenCentralToken: ${{ secrets.CRISP_SDK_MAVEN_CENTRAL_TOKEN }}
+        run: mise run publish-sdk
+
+      # Signed artifacts as uploaded, and JReleaser logs (secrets are masked) to investigate a failed deploy
+      - name: Upload deployment and JReleaser output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-output
+          path: |
+            sdk/build/staging-deploy
+            sdk/build/jreleaser
+          if-no-files-found: ignore

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="crisp_sdk_chatbox_background">@color/crisp_sdk_base_normal</color>
+
+    <!-- From Crisp -->
+    <color name="crisp_sdk_base_normal">#fff</color>
+    <color name="crisp_sdk_blue_crisp">#1972f5</color>
+    <color name="crisp_sdk_red">#e0102b</color>
+    <color name="crisp_sdk_white_fixed">#fff</color>
+
+    <!-- From MaterialThemeBuilder with source color blue_crisp and color match -->
+    <color name="crisp_sdk_on_surface">#191b23</color>
+    <color name="crisp_sdk_on_surface_variant">#424754</color>
+    <color name="crisp_sdk_secondary_container">#a8c0fd</color>
+    <color name="crisp_sdk_on_secondary_container">#344d83</color>
+
+    <!-- Fixes -->
+    <color name="crisp_sdk_bottomsheet_navigation_bar_color">#801b1b1b</color>
+</resources>

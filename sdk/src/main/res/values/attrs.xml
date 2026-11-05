@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="crisp_sdk_website_id" format="string" />
+    <attr name="crisp_sdk_token_id" format="string" />
+    <attr name="crisp_sdk_edge_to_edge">
+        <flag name="none" value="0" />
+        <flag name="top" value="1" />
+        <flag name="bottom" value="2" />
+        <flag name="all" value="3" />
+    </attr>
+
+    <declare-styleable name="CrispChatboxView">
+        <attr name="crisp_sdk_website_id" />
+        <attr name="crisp_sdk_token_id" />
+        <attr name="crisp_sdk_edge_to_edge" />
+    </declare-styleable>
+
+    <declare-styleable name="CrispFragment">
+        <attr name="crisp_sdk_website_id" />
+        <attr name="crisp_sdk_token_id" />
+        <attr name="crisp_sdk_edge_to_edge" />
+    </declare-styleable>
+</resources>

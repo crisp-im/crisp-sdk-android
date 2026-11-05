@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MaterialAlertDialog.Crisp.SDK" parent="MaterialAlertDialog.Material3">
+        <item name="backgroundTint">@color/crisp_sdk_chatbox_background</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Crisp.SDK.BottomSheet.Modal</item>
+    </style>
+
+    <style name="Widget.Crisp.SDK.BottomSheet.Modal" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="android:maxWidth">@dimen/crisp_sdk_chatbox_modal_max_width</item>
+        <item name="backgroundTint">@color/crisp_sdk_chatbox_background</item>
+        <!-- Side and bottom insets are handled by CrispBottomSheetDialogFragment -->
+        <item name="paddingBottomSystemWindowInsets">false</item>
+        <item name="marginLeftSystemWindowInsets">false</item>
+        <item name="marginRightSystemWindowInsets">false</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Crisp.SDK.BottomSheet.Modal</item>
+    </style>
+
+    <!-- Copy menu, with the background of the bottom sheets (`android:popupBackground` doesn't support a shape appearance) -->
+    <style name="Widget.Crisp.SDK.PopupMenu" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/crisp_sdk_popup_menu_background</item>
+    </style>
+
+    <style name="ShapeAppearance.Crisp.SDK.BottomSheet.Modal" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerSize">@dimen/crisp_sdk_chatbox_radius_top</item>
+    </style>
+</resources>

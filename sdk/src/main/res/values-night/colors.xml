@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="crisp_sdk_base_normal">#121212</color>
+    <color name="crisp_sdk_blue_crisp">#afc6ff</color>
+
+    <!-- From MaterialThemeBuilder with source color blue_crisp and color match -->
+    <color name="crisp_sdk_on_surface">#e1e2ed</color>
+    <color name="crisp_sdk_on_surface_variant">#c2c6d7</color>
+    <color name="crisp_sdk_secondary_container">#2e487d</color>
+    <color name="crisp_sdk_on_secondary_container">#9fb8f4</color>
+
+    <!-- Fixes -->
+    <color name="crisp_sdk_bottomsheet_navigation_bar_color">@android:color/transparent</color>
+</resources>
