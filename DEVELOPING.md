@@ -162,7 +162,7 @@ gpg --armor --export-secret-keys <keyId> | gh secret set CRISP_SDK_SIGNING_KEY -
 gh secret set CRISP_SDK_ANDROID_SIGNING_PASSWORD --repo crisp-im/crisp-sdk-android --env maven-central
 gh secret set CRISP_SDK_ANDROID_MAVEN_CENTRAL_USER --repo crisp-im/crisp-sdk-android --env maven-central
 gh secret set CRISP_SDK_ANDROID_MAVEN_CENTRAL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central
-gh secret set NPM_PULL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central < path/to/crisp.npmrc
+gh secret set CRISP_SDK_ANDROID_NPM_PULL_TOKEN --repo crisp-im/crisp-sdk-android --env maven-central < path/to/crisp.npmrc
 ```
 
 The workflow maps each secret to its `ORG_GRADLE_PROJECT_<name>` env var. The documentation workflow doesn't need any of them.

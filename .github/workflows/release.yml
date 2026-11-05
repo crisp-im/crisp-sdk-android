@@ -46,7 +46,7 @@ jobs:
       # The `client` code bundled into the SDK is generated and not versioned (npm, jq and tar come with the runner)
       - name: Fetch Web client and generate strings
         env:
-          NPM_PULL_TOKEN: ${{ secrets.NPM_PULL_TOKEN }}
+          NPM_PULL_TOKEN: ${{ secrets.CRISP_SDK_ANDROID_NPM_PULL_TOKEN }}
         run: |
           mise run fetch-crisp-client
           mise run generate-strings
