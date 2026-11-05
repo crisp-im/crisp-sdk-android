@@ -55,10 +55,6 @@ pull_web_client_package() {
   # so a local would be out of scope by then and the .npmrc would survive in /tmp.
   # This owns the EXIT trap. Extend it rather than adding a second one.
   WEB_CLIENT_TMP_DIR="$(mktemp -d)"
-  if [ -d "${WEB_CLIENT_TMP_DIR}" ]; then
-    rm -rf "${WEB_CLIENT_TMP_DIR}"
-  fi
-  mkdir "${WEB_CLIENT_TMP_DIR}"
   trap 'rm -rf "${WEB_CLIENT_TMP_DIR}"' EXIT
 
   write_npmrc "${WEB_CLIENT_TMP_DIR}/.npmrc"
@@ -183,7 +179,7 @@ write_strings_file() {
   mkdir -p "$resources_dir/$values_dir"
   jq -e '._strings.sdk | type == "object"' "$locale_file" >/dev/null \
     || fail "missing or malformed _strings.sdk in $(basename "$locale_file")"
-  temp=$(mktemp "${target}.tmp")
+  temp=$(mktemp "${target}.XXXXXX")
 
   {
     printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>'
