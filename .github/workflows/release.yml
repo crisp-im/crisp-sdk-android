@@ -1,0 +1,17 @@
+# Stub so that GitHub lists this workflow, which must exist on the default branch to be run manually.
+# The real workflow is on `develop`: select it in "Use workflow from".
+name: Build, sign & deploy SDK
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  stub:
+    name: Stub
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::This is a stub. Run this workflow from the develop branch."
+          exit 1
