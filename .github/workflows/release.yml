@@ -1,6 +1,6 @@
 # Builds, signs and uploads the SDK to Maven Central, to check and publish from the Central Portal
 # (https://central.sonatype.com/publishing/deployments), or as a snapshot if `jreleaserSnapshot` is `true`.
-# The version is `jreleaserVersion` in `gradle.properties`, from the `beta` branch for the moment.
+# The version is `jreleaserVersion` in `gradle.properties`, from the selected branch.
 # Requires the secrets of the `maven-central` environment (see DEVELOPING.md).
 name: Build, sign & deploy SDK
 
@@ -27,10 +27,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          # Still in `beta` branch for the moment,
-          # will move to `master` once released
-          ref: beta
 
       - name: Set up JDK
         uses: actions/setup-java@v5
