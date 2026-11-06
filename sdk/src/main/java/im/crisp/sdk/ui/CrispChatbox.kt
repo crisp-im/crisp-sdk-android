@@ -71,10 +71,44 @@ fun rememberCrispChatboxController(callbacks: CrispEventCallbacks? = null): Cris
 }
 
 /**
- * The chatbox, driven by [controller][CrispChatboxController].
+ * The chatbox, driven by [controller][CrispChatboxController], embedded in your layout.
+ *
+ * ```
+ * @Composable
+ * fun SupportScreen(user: User, onBack: () -> Unit) {
+ *     val scope = rememberCoroutineScope()
+ *     val controller = rememberCrispChatboxController(
+ *         callbacks = CrispEventCallbacks(
+ *             onMessageReceived = { message -> ... }
+ *         )
+ *     )
+ *
+ *     Box {
+ *         CrispChatbox(
+ *             websiteId = "YOUR_WEBSITE_ID",
+ *             modifier = Modifier.fillMaxSize(),
+ *             tokenId = user.id,
+ *             edgeToEdge = EdgeToEdge.ALL,
+ *             controller = controller,
+ *             onClose = onBack
+ *         )
+ *         Button(onClick = { scope.launch { controller.helpdesk.search() } }) {
+ *             Text("Search our help center")
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * Passing another [websiteId] or [tokenId] reloads the chatbox. [edgeToEdge] is only read when
+ * the chatbox enters the composition: see [EdgeToEdge] to choose it.
  *
  * [onClose] is called when the user asks to close the chatbox from its Web client, unlike
  * [onChatClosed][CrispEventCallbacks.onChatClosed] which is called once it is no longer shown.
+ *
+ * The test app has samples [fullscreen](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/FullscreenComposeActivity.kt)
+ * and [below a top app bar](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/AppBarComposeActivity.kt).
+ *
+ * @see CrispChatboxController
  */
 @Composable
 fun CrispChatbox(
@@ -95,7 +129,11 @@ fun CrispChatbox(
 }
 
 /**
- * The chatbox, driven by [controller][CrispChatboxController].
+ * The chatbox, driven by [controller][CrispChatboxController], embedded in your layout,
+ * see the overload taking a `websiteId` for a sample.
+ *
+ * Passing another [config] reloads the chatbox. [edgeToEdge] is only read when
+ * the chatbox enters the composition: see [EdgeToEdge] to choose it.
  *
  * [onClose] is called when the user asks to close the chatbox from its Web client, unlike
  * [onChatClosed][CrispEventCallbacks.onChatClosed] which is called once it is no longer shown.

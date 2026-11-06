@@ -10,6 +10,52 @@ import im.crisp.sdk.R
 import im.crisp.sdk.api.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 
+/**
+ * The chatbox as a `Fragment`, embedded in your layout.
+ *
+ * In XML, with the `app:crisp_sdk_website_id`, `app:crisp_sdk_token_id` and `app:crisp_sdk_edge_to_edge` attributes:
+ * ```xml
+ * <androidx.fragment.app.FragmentContainerView
+ *     android:id="@+id/chatbox_fragment"
+ *     android:name="im.crisp.sdk.ui.CrispFragment"
+ *     android:layout_width="match_parent"
+ *     android:layout_height="match_parent"
+ *     app:crisp_sdk_website_id="@string/crisp_website_id"
+ *     app:crisp_sdk_edge_to_edge="all" />
+ * ```
+ *
+ * In code, with the arguments of [newInstance]. Only add it once, as Android restores it afterward:
+ * ```
+ * if (savedInstanceState == null) {
+ *     supportFragmentManager.beginTransaction()
+ *         .replace(
+ *             R.id.fragment_container,
+ *             CrispFragment.newInstance(
+ *                 websiteId = "YOUR_WEBSITE_ID",
+ *                 tokenId = user.id,
+ *                 edgeToEdge = EdgeToEdge.ALL
+ *             ),
+ *             CrispFragment.TAG
+ *         )
+ *         .commit()
+ * }
+ * ```
+ *
+ * The [controller] drives its chatbox. The default one lives as long as this fragment,
+ * so register its callbacks on each creation of your `Activity`:
+ * ```
+ * val fragment = supportFragmentManager.findFragmentById(R.id.chatbox_fragment) as CrispFragment
+ * fragment.controller.addEventCallbacks(CrispEventCallbacks(onChatOpened = { ... }))
+ * ```
+ * To keep the pending calls too when the fragment is recreated, e.g. on rotation, set your own from
+ * a `ViewModel`, as [CrispBottomSheetDialogFragment] details.
+ *
+ * The test app has samples [in XML](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/XmlFragmentActivity.java)
+ * and [in code, with a `ViewModel`](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/ProgrammaticFragmentActivity.kt).
+ *
+ * @see EdgeToEdge
+ * @see im.crisp.sdk.api.CrispChatboxController
+ */
 class CrispFragment : Fragment() {
     /**
      * Drives the Web client of this chatbox, kept when the view is recreated.

@@ -110,6 +110,34 @@ fun CrispBottomSheetModal(
 /**
  * The chatbox in a modal bottom sheet, which can be swiped down to dismiss it, as a Material 3 `ModalBottomSheet`.
  *
+ * ```
+ * @Composable
+ * fun SupportButton(user: User) {
+ *     var isSheetShown by rememberSaveable { mutableStateOf(false) }
+ *     // Outside of the condition below, to outlive the sheet
+ *     val controller = rememberCrispChatboxController(
+ *         callbacks = CrispEventCallbacks(
+ *             onChatClosed = { ... }
+ *         )
+ *     )
+ *
+ *     Button(onClick = { isSheetShown = true }) {
+ *         Text("Contact us")
+ *     }
+ *
+ *     if (isSheetShown) {
+ *         CrispBottomSheetModal(
+ *             config = CrispConfig(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id),
+ *             controller = controller,
+ *             onDismissRequest = { isSheetShown = false }
+ *         )
+ *     }
+ * }
+ * ```
+ *
+ * Without a [controller], the sheet creates a default one, closed when it is dismissed.
+ * The sheet handles its insets itself, so there is no [EdgeToEdge] to set.
+ *
  * @param onDismissRequest called once the sheet is hidden: closed from the chatbox, swiped down, or dismissed by
  * a back press or a tap outside of it. As for a Material 3 `ModalBottomSheet`, remove this sheet from the
  * composition then: otherwise its dialog stays shown, hidden but still catching touches.

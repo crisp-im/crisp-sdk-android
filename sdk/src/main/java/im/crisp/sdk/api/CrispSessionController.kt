@@ -35,6 +35,9 @@ import im.crisp.sdk.model.SessionEventColor
  * see [CrispChatboxController].
  *
  * Cheap to create: all instances share the calls of their session.
+ *
+ * The test app has a [form](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/controller/SessionControllerForm.kt)
+ * calling every method.
  */
 class CrispSessionController internal constructor(
     private val dispatcher: CrispControllerDispatcher,

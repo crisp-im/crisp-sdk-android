@@ -55,6 +55,45 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * The chatbox as a `View`, embedded in your layout.
+ *
+ * In XML, with the `app:crisp_sdk_website_id`, `app:crisp_sdk_token_id` and `app:crisp_sdk_edge_to_edge` attributes:
+ * ```xml
+ * <im.crisp.sdk.ui.CrispChatboxView
+ *     android:id="@+id/chatbox_view"
+ *     android:layout_width="match_parent"
+ *     android:layout_height="match_parent"
+ *     app:crisp_sdk_website_id="@string/crisp_website_id"
+ *     app:crisp_sdk_edge_to_edge="top" />
+ * ```
+ *
+ * In code, with [enableEdgeToEdge] and [load]:
+ * ```
+ * val chatboxView = CrispChatboxView(context).apply {
+ *     enableEdgeToEdge(EdgeToEdge.ALL)
+ *     load(CrispConfig(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id))
+ * }
+ * container.addView(chatboxView)
+ * ```
+ * [load] also overrides the attributes, or switches to another website or user later on.
+ *
+ * The [controller] drives its chatbox. The default one lives as long as this view,
+ * so register its callbacks on each creation of your `Activity`:
+ * ```
+ * val chatboxView = findViewById<CrispChatboxView>(R.id.chatbox_view)
+ * chatboxView.controller.addEventCallbacks(CrispEventCallbacks(onChatOpened = { ... }))
+ * ```
+ * To keep the pending calls too when the view is recreated, e.g. on rotation, set your own from a `ViewModel`,
+ * see [CrispChatboxController].
+ *
+ * The WebView is destroyed with the lifecycle hosting this view. If you remove this view before that,
+ * call its [onDestroy] method.
+ *
+ * The test app has a [sample in XML](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/XmlViewActivity.kt).
+ *
+ * @see EdgeToEdge
+ */
 @SuppressLint("SetJavaScriptEnabled")
 class CrispChatboxView @JvmOverloads constructor(
     context: Context,
@@ -325,18 +364,22 @@ class CrispChatboxView @JvmOverloads constructor(
             }
         }
 
+    /** Draws both edges of this chatbox behind the system bars, see [EdgeToEdge.ALL]. */
     fun enableEdgeToEdge() {
         edgeToEdge = EdgeToEdge.ALL
     }
 
+    /** Draws the given edges of this chatbox behind the system bars, see [EdgeToEdge]. */
     fun enableEdgeToEdge(edgeToEdge: EdgeToEdge) {
         this.edgeToEdge = edgeToEdge
     }
 
+    /** Draws the given edges of this chatbox behind the system bars, see [EdgeToEdge]. */
     fun enableEdgeToEdge(top: Boolean = false, bottom: Boolean = false) {
         edgeToEdge = EdgeToEdge(top = top, bottom = bottom)
     }
 
+    /** Draws both edges of this chatbox behind the system bars if [enabled], or none, see [EdgeToEdge]. */
     fun enableEdgeToEdge(enabled: Boolean) {
         edgeToEdge = if (enabled) EdgeToEdge.ALL else EdgeToEdge.NONE
     }

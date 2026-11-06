@@ -28,6 +28,47 @@ import im.crisp.sdk.internal.views.CrispSheetDrag
 import im.crisp.sdk.internal.views.CrispSheetDragHost
 import kotlin.math.roundToInt
 
+/**
+ * The chatbox in a modal bottom sheet, which can be swiped down to dismiss it, for apps using Fragments.
+ *
+ * [CrispChat.show] is the shortcut to show it:
+ * ```
+ * CrispChat.show(activity = this, websiteId = "YOUR_WEBSITE_ID", tokenId = user.id)
+ * ```
+ *
+ * Use [newInstance] to show it yourself, e.g. from a child `FragmentManager`:
+ * ```
+ * CrispBottomSheetDialogFragment.newInstance(websiteId = "YOUR_WEBSITE_ID")
+ *     .show(childFragmentManager, CrispBottomSheetDialogFragment.TAG)
+ * ```
+ *
+ * The sheet handles its insets itself, so there is no [EdgeToEdge] to set.
+ *
+ * Android recreates the sheet with its `Activity`, e.g. on rotation, and a new default [controller] comes with it,
+ * without its callbacks and pending calls. To keep them, hold the controller in a `ViewModel` and set it on the
+ * sheet when attached, including the restored one:
+ * ```
+ * class ChatViewModel(
+ *     val controller: CrispChatboxController = CrispChatboxController()
+ * ) : ViewModel(controller) // Closes the controller with the ViewModel
+ *
+ * class MainActivity : AppCompatActivity() {
+ *     private val viewModel: ChatViewModel by viewModels()
+ *
+ *     override fun onCreate(savedInstanceState: Bundle?) {
+ *         // Before super.onCreate(), which restores the sheet
+ *         supportFragmentManager.addFragmentOnAttachListener { _, fragment ->
+ *             if (fragment is CrispBottomSheetDialogFragment) {
+ *                 fragment.controller = viewModel.controller
+ *             }
+ *         }
+ *         super.onCreate(savedInstanceState)
+ *     }
+ * }
+ * ```
+ *
+ * @see im.crisp.sdk.api.CrispChatboxController
+ */
 class CrispBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private var chatboxView: CrispChatboxView? = null
 

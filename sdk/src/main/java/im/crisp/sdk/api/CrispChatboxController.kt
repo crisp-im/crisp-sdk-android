@@ -69,7 +69,108 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * Register [CrispEventCallbacks] with [addEventCallbacks] to be notified of the chatbox events.
  *
+ * ## Getting a controller
  *
+ * How long the controller must live decides where it comes from.
+ *
+ * ### As long as the composition, with `rememberCrispChatboxController`
+ *
+ * In Compose, [rememberCrispChatboxController][im.crisp.sdk.ui.rememberCrispChatboxController] suits most cases.
+ * It is closed when it leaves the composition, and is recreated with the `Activity`, e.g. on rotation:
+ * ```
+ * @Composable
+ * fun SupportScreen() {
+ *     val scope = rememberCoroutineScope()
+ *     val controller = rememberCrispChatboxController()
+ *     var isOngoing by remember { mutableStateOf(false) }
+ *
+ *     // Waits for the chatbox to be ready
+ *     LaunchedEffect(controller) {
+ *         isOngoing = controller.session.isOngoing()
+ *     }
+ *
+ *     Column {
+ *         if (!isOngoing) {
+ *             Button(onClick = { scope.launch { controller.bot.runScenario("YOUR_SCENARIO_ID") } }) {
+ *                 Text("Get started")
+ *             }
+ *         }
+ *         CrispChatbox(websiteId = "YOUR_WEBSITE_ID", controller = controller)
+ *     }
+ * }
+ * ```
+ *
+ * ### Across configuration changes, in a `ViewModel`
+ *
+ * Own it in a `ViewModel` so that pending calls survive configuration changes, and to call it from your logic.
+ * Passed to the `ViewModel` constructor, it is closed with it:
+ * ```
+ * class SupportViewModel(
+ *     val controller: CrispChatboxController = CrispChatboxController()
+ * ) : ViewModel(controller) {
+ *     fun openArticle(slug: String) {
+ *         viewModelScope.launch {
+ *             controller.helpdesk.openArticle(locale = "en", slug = slug)
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * In Compose, pass it to the component:
+ * ```
+ * CrispChatbox(websiteId = "YOUR_WEBSITE_ID", controller = viewModel.controller)
+ * ```
+ *
+ * With a [CrispChatboxView][im.crisp.sdk.ui.CrispChatboxView], set it on the view on each creation:
+ * ```
+ * findViewById<CrispChatboxView>(R.id.chatbox_view).controller = viewModel.controller
+ * ```
+ *
+ * With a [CrispFragment][im.crisp.sdk.ui.CrispFragment] or a
+ * [CrispBottomSheetDialogFragment][im.crisp.sdk.ui.CrispBottomSheetDialogFragment], Android restores the fragment
+ * by itself, so set it when attached. Register the listener before `super.onCreate()`, which restores it:
+ * ```
+ * supportFragmentManager.addFragmentOnAttachListener { _, fragment ->
+ *     if (fragment is CrispFragment) {
+ *         fragment.controller = viewModel.controller
+ *     }
+ * }
+ * ```
+ *
+ * The controller outlives the `Activity`, so remove the callbacks that reference the `Activity` in its `onDestroy`,
+ * see [addEventCallbacks]. The test app has a
+ * [complete sample](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/ProgrammaticFragmentActivity.kt).
+ *
+ * ### As long as a View or a Fragment, with their default one
+ *
+ * Without passing one, [CrispChatboxView.controller][im.crisp.sdk.ui.CrispChatboxView.controller],
+ * [CrispFragment.controller][im.crisp.sdk.ui.CrispFragment.controller] and
+ * [CrispBottomSheetDialogFragment.controller][im.crisp.sdk.ui.CrispBottomSheetDialogFragment.controller]
+ * give the one created with the component, or [CrispChat.show][im.crisp.sdk.ui.CrispChat.show] through the sheet
+ * it returns. It is lost when the component is recreated.
+ *
+ * ## Calling it
+ *
+ * From Kotlin coroutines, use the `suspend` flavors:
+ * ```
+ * scope.launch {
+ *     val email = controller.user.getEmail()
+ *     controller.helpdesk.search()
+ * }
+ * ```
+ *
+ * Without a coroutine, UI methods can be called with `completion = null`:
+ * ```
+ * controller.helpdesk.search(completion = null)
+ * ```
+ *
+ * From Java, use the callback flavors:
+ * ```java
+ * controller.getUser().getEmail(email -> showEmail(email));
+ * controller.getHelpdesk().search();
+ * ```
+ *
+ * @see CrispSessionController
  */
 class CrispChatboxController : AutoCloseable {
     private class ChatboxAttachment(
