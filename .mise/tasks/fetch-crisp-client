@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#MISE description="Fetch the CrispClient dev module from the private npm registry"
+#MISE alias="fetch-cc"
+#USAGE arg "[version]" help="npm version, range or dist-tag to fetch. Defaults to the version pinned in .crisp-client-version."
+
+set -euo pipefail
+
+# shellcheck source=../lib/web-client.sh
+source "${PWD}/.mise/lib/web-client.sh"
+
+# client module - the dev target's path, reset it first.
+ASSETS_DIR="${CRISP_CLIENT_ASSETS_DIR}"
+SOURCE_DIR="${CRISP_CLIENT_SOURCE_DIR}"
+
+VERSION="$(resolve_crisp_client_version "${usage_version:-}")"
+
+rm -rf "${ASSETS_DIR}"
+mkdir -p "${ASSETS_DIR}"
+
+fetch_web_client_dist "${VERSION}" "${CRISP_CLIENT_PACKAGE_DIR}"
+mkdir -p "${SOURCE_DIR}"
+write_crisp_client_android "${SOURCE_DIR}"
+
+# TODO: handle dev/local/release
+#mise run set-crisp-client-target dev
+
+echo "Dev module ready: CrispClient v${WEB_CLIENT_VERSION}."

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme of the SDK native views (`CrispNativeView`), for their Material components to work whatever the app theme -->
+    <style name="Theme.Crisp.SDK" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="popupMenuStyle">@style/Widget.Crisp.SDK.PopupMenu</item>
+    </style>
+    <!-- Theme of the SDK bottom sheet dialogs, a full theme (not an overlay) for their Material components to work whatever the app theme -->
+    <style name="Theme.Crisp.SDK.BottomSheetDialog" parent="Theme.Material3.DayNight.BottomSheetDialog">
+        <item name="enableEdgeToEdge">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="bottomSheetStyle">@style/Widget.Crisp.SDK.BottomSheet.Modal</item>
+    </style>
+    <style name="ThemeOverlay.Crisp.SDK.Button.Outlined" parent="ThemeOverlay.Material3.Button.TextButton">
+        <item name="colorPrimary">@color/crisp_sdk_blue_crisp</item> <!-- text, enabled ; ripple -->
+        <item name="colorOnSurface">@color/crisp_sdk_blue_crisp</item> <!-- stroke, disabled ; text, disabled -->
+        <item name="colorOutline">@color/crisp_sdk_blue_crisp</item> <!-- stroke, default -->
+    </style>
+    <style name="ThemeOverlay.Crisp.SDK.Button.Text" parent="ThemeOverlay.Material3.Button.TextButton">
+        <item name="materialButtonStyle">@style/Widget.Material3.Button.TextButton</item>
+        <item name="colorPrimary">@color/crisp_sdk_blue_crisp</item> <!-- text, enabled ; ripple -->
+        <item name="colorOnSurface">@color/crisp_sdk_blue_crisp</item> <!-- text, disabled -->
+    </style>
+    <style name="ThemeOverlay.Crisp.SDK.Button.Tonal" parent="ThemeOverlay.Material3.Button.TonalButton">
+        <item name="colorOnSecondaryContainer">@color/crisp_sdk_on_secondary_container</item> <!-- text, enabled ; ripple -->
+        <item name="colorSecondaryContainer">@color/crisp_sdk_secondary_container</item> <!-- background, enabled -->
+        <item name="colorOnSurface">@color/crisp_sdk_on_surface</item> <!-- text, disabled ; background, disabled -->
+    </style>
+    <style name="ThemeOverlay.Crisp.SDK.Button.Tonal.Error">
+        <item name="colorOnSecondaryContainer">@color/crisp_sdk_red</item> <!-- text, enabled ; ripple -->
+        <item name="colorSecondaryContainer">@color/crisp_sdk_white_fixed</item> <!-- background, enabled -->
+    </style>
+    <!-- Alert dialogs (JS alert, permissions), with the background and shape of the bottom sheets -->
+    <style name="ThemeOverlay.Crisp.SDK.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.Crisp.SDK</item>
+        <item name="colorPrimary">@color/crisp_sdk_blue_crisp</item> <!-- buttons text ; ripple -->
+        <item name="colorOnSurface">@color/crisp_sdk_on_surface</item> <!-- title -->
+        <item name="colorOnSurfaceVariant">@color/crisp_sdk_on_surface_variant</item> <!-- message -->
+    </style>
+
+    <style name="TextAppearance.Crisp.SDK.Error.Message" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/crisp_sdk_on_surface</item>
+    </style>
+    <style name="TextAppearance.Crisp.SDK.Error.Title" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/crisp_sdk_on_surface_variant</item>
+    </style>
+    <style name="TextAppearance.Crisp.SDK.Error.Message.Error">
+        <item name="android:textColor">@color/crisp_sdk_white_fixed</item>
+    </style>
+    <style name="TextAppearance.Crisp.SDK.Error.Title.Error">
+        <item name="android:textColor">@color/crisp_sdk_white_fixed</item>
+    </style>
+</resources>

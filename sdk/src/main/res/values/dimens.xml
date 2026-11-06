@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="crisp_sdk_chatbox_radius_top">16dp</dimen>
+    <dimen name="crisp_sdk_chatbox_modal_padding_top">10dp</dimen>
+    <!-- Same as the Material bottom sheet -->
+    <dimen name="crisp_sdk_chatbox_modal_max_width">640dp</dimen>
+    <dimen name="crisp_sdk_chatbox_loading_padding">16dp</dimen>
+    <dimen name="crisp_sdk_chatbox_loading_dot_size">10dp</dimen>
+    <dimen name="crisp_sdk_chatbox_loading_dot_spacing">8dp</dimen>
+    <dimen name="crisp_sdk_chatbox_error_padding">24dp</dimen>
+    <dimen name="crisp_sdk_chatbox_error_message_margin_top">16dp</dimen>
+    <dimen name="crisp_sdk_chatbox_error_buttons_margin_top">24dp</dimen>
+    <dimen name="crisp_sdk_chatbox_error_button_margin_start">8dp</dimen>
+    <!-- Upload sheet dimensions -->
+    <dimen name="crisp_sdk_upload_bottomsheet_radius_top">@dimen/crisp_sdk_chatbox_radius_top</dimen>
+    <dimen name="crisp_sdk_upload_item_height">56dp</dimen>
+    <dimen name="crisp_sdk_upload_item_padding_horizontal">24dp</dimen>
+    <dimen name="crisp_sdk_upload_icon_size">24dp</dimen>
+    <dimen name="crisp_sdk_upload_icon_margin_end">16dp</dimen>
+    <!-- Smaller than the chatbox one, for a single line menu -->
+    <dimen name="crisp_sdk_popup_menu_radius">@dimen/crisp_sdk_chatbox_radius_top</dimen>
+</resources>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Lets CrispWebViewSupport tell if a Play Store can open the WebView update page -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+    </queries>
+
+    <application>
+        <!-- TODO: do not forget to remove the FileProvider merging in the doc
+                (see: https://github.com/crisp-im/crisp-sdk-android/wiki/1.-Installation#7-add-crisp-authority-and-path-to-your-fileprovider-if-any) -->
+        <provider
+            android:name="im.crisp.sdk.internal.upload.CrispFileProvider"
+            android:authorities="${applicationId}.im.crisp.sdk.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/crisp_sdk_file_paths" />
+        </provider>
+    </application>
+
+</manifest>

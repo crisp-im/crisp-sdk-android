@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#MISE description="Build, sign and upload the SDK to Maven Central, to check and publish from the Central Portal"
+
+# Needs the signing key and Maven Central credentials as ORG_GRADLE_PROJECT_crispSdk* env vars,
+# read from the macOS Keychain by .mise/config.local.toml (see DEVELOPING.md).
+
+set -euo pipefail
+
+#######################################
+# Fails if one of the given env vars is not set or empty.
+# Arguments:
+#   Names of the env vars.
+#######################################
+require_env() {
+  local name
+  local missing=0
+  for name in "$@"; do
+    if [[ -z "${!name:-}" ]]; then
+      echo "Missing ${name} env var, see DEVELOPING.md" >&2
+      missing=1
+    fi
+  done
+  return "${missing}"
+}
+
+require_env \
+  ORG_GRADLE_PROJECT_crispSdkSigningKeyId \
+  ORG_GRADLE_PROJECT_crispSdkSigningKey \
+  ORG_GRADLE_PROJECT_crispSdkSigningPassword \
+  ORG_GRADLE_PROJECT_crispSdkMavenCentralUser \
+  ORG_GRADLE_PROJECT_crispSdkMavenCentralToken
+
+./gradlew clean :sdk:publish
+./gradlew :sdk:jreleaserDeploy

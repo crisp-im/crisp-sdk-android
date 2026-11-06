@@ -1,0 +1,28 @@
+<resources>
+    <!-- TODO: fill your Website IDs here -->
+    <!-- Only used by XML attributes, overridden at runtime by the website selected in the chatbox controller form -->
+    <string name="crisp_website_id" translatable="false">-JzqEmX56venQuQw4YV8</string>
+    <string-array name="crisp_websites_id" translatable="false">
+        <item />
+        <item>-JzqEmX56venQuQw4YV8</item>
+    </string-array>
+    <string-array name="crisp_websites_name" translatable="false">
+        <item>None</item>
+        <item>Crisp</item>
+    </string-array>
+    <string name="app_name">Crisp SDK Catalog</string>
+    <string name="chatbox_controller_fab_description">Open the chatbox controller</string>
+    <string name="chatbox_controller_dialog_title">CrispChatboxController</string>
+    <string name="session_controller_fab_description">Open the session controller</string>
+    <string name="session_controller_dialog_title">CrispSessionController</string>
+    <string name="controller_dialog_close">Close</string>
+    <!-- Event toasts, %1$s being the chatbox source (e.g. "XML View") and %2$s the event -->
+    <string name="event_toast">%1$s: %2$s</string>
+    <string name="event_chat_opened">chat opened</string>
+    <string name="event_chat_closed">chat closed</string>
+    <string name="event_session_loaded">session loaded: %1$s</string>
+    <string name="event_message_sent">message sent: %1$s</string>
+    <string name="event_message_received">message received: %1$s</string>
+    <!-- %1$s is the message content type (e.g. TextContent), %2$s its sender (e.g. OPERATOR) -->
+    <string name="event_message_description">%1$s from %2$s</string>
+</resources>
