@@ -85,7 +85,7 @@ dependencies {
 // Generated from KDoc by Dokka, with `./gradlew :sdk:dokkaGeneratePublicationHtml` into `sdk/build/dokka/html`.
 // Published to GitHub Pages by `.github/workflows/docs.yml`, and bundled as the `-javadoc.jar` for Maven Central.
 dokka {
-    moduleName.set("Crisp")
+    moduleName.set("Crisp SDK Android")
     moduleVersion.set(sdkVersion)
     dokkaPublications.html {
         // Hides members inherited from Android parents (e.g. `Fragment`, `View`), only keeping declared or overridden ones

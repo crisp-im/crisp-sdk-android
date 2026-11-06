@@ -1,4 +1,4 @@
-# Module Crisp
+# Module Crisp SDK Android
 
 Crisp Chatbox SDK for Android, used for visitors to get help from operators.
 
@@ -88,12 +88,12 @@ startActivity(new Intent(this, ChatActivity.class));
 
 `Crisp.configure` and `ChatActivity` are gone. The chatbox is now a component that you place in your UI like any other, and it receives its `websiteId` and optional `tokenId` the way this UI toolkit passes them:
 
-| Toolkit | Given by | Sample                                                                                             |
-|---|---|----------------------------------------------------------------------------------------------------|
-| Compose | Parameters | `CrispChatbox(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id)`                                   |
+| Toolkit                  | Given by   | Sample                                                                                              |
+|--------------------------|------------|-----------------------------------------------------------------------------------------------------|
+| Compose                  | Parameters | `CrispChatbox(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id)`                                    |
 | View and Fragment in XML | Attributes | `app:crisp_sdk_website_id="@string/your_website_id"` and `app:crisp_sdk_token_id="@string/user_id"` |
-| Fragment in code | Arguments | `CrispFragment.newInstance(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id)`                      |
-| View in code | Method | `chatboxView.load(CrispConfig(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id))`                  |
+| Fragment in code         | Arguments  | `CrispFragment.newInstance(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id)`                       |
+| View in code             | Method     | `chatboxView.load(CrispConfig(websiteId = "YOUR_WEBSITE_ID", tokenId = user.id))`                   |
 
 There is no global state to keep up to date anymore: changing `Crisp.setTokenID` becomes passing another `tokenId`, and each chatbox can load its own website.
 
@@ -134,23 +134,23 @@ fun Support(user: User) {
 
 ### Method mapping
 
-| SDK 2.x | SDK 3 |
-|---|---|
-| `Crisp.configure`, `Crisp.setTokenID` | `websiteId` and `tokenId` of the component, see above |
-| `Crisp.resetChatSession` | [CrispSessionController.session.reset][im.crisp.sdk.api.CrispSessionController.Session.reset] |
-| `Crisp.getSessionIdentifier` | [CrispChatboxController.session.getIdentifier][im.crisp.sdk.api.CrispChatboxController.Session.getIdentifier], or [CrispEventCallbacks.onSessionLoaded][im.crisp.sdk.api.CrispEventCallbacks.onSessionLoaded] |
-| `Crisp.setSessionBool`, `setSessionInt`, `setSessionString` | [CrispSessionController.session.setData][im.crisp.sdk.api.CrispSessionController.Session.setData] |
-| `Crisp.setSessionSegment`, `setSessionSegments` | [CrispSessionController.session.setSegments][im.crisp.sdk.api.CrispSessionController.Session.setSegments] |
-| `Crisp.pushSessionEvent`, `pushSessionEvents` | [CrispSessionController.session.pushEvent][im.crisp.sdk.api.CrispSessionController.Session.pushEvent] |
+| SDK 2.x                                                                                    | SDK 3                                                                                                                                                                                                                                                                                                                                                                                 |
+|--------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Crisp.configure`, `Crisp.setTokenID`                                                      | `websiteId` and `tokenId` of the component, see above                                                                                                                                                                                                                                                                                                                                 |
+| `Crisp.resetChatSession`                                                                   | [CrispSessionController.session.reset][im.crisp.sdk.api.CrispSessionController.Session.reset]                                                                                                                                                                                                                                                                                         |
+| `Crisp.getSessionIdentifier`                                                               | [CrispChatboxController.session.getIdentifier][im.crisp.sdk.api.CrispChatboxController.Session.getIdentifier], or [CrispEventCallbacks.onSessionLoaded][im.crisp.sdk.api.CrispEventCallbacks.onSessionLoaded]                                                                                                                                                                         |
+| `Crisp.setSessionBool`, `setSessionInt`, `setSessionString`                                | [CrispSessionController.session.setData][im.crisp.sdk.api.CrispSessionController.Session.setData]                                                                                                                                                                                                                                                                                     |
+| `Crisp.setSessionSegment`, `setSessionSegments`                                            | [CrispSessionController.session.setSegments][im.crisp.sdk.api.CrispSessionController.Session.setSegments]                                                                                                                                                                                                                                                                             |
+| `Crisp.pushSessionEvent`, `pushSessionEvents`                                              | [CrispSessionController.session.pushEvent][im.crisp.sdk.api.CrispSessionController.Session.pushEvent]                                                                                                                                                                                                                                                                                 |
 | `Crisp.setUserAvatar`, `setUserEmail`, `setUserPhone`, `setUserCompany`, `setUserNickname` | [CrispSessionController.user.setAvatar][im.crisp.sdk.api.CrispSessionController.User.setAvatar], [setEmail][im.crisp.sdk.api.CrispSessionController.User.setEmail], [setPhone][im.crisp.sdk.api.CrispSessionController.User.setPhone], [setCompany][im.crisp.sdk.api.CrispSessionController.User.setCompany], [setNickname][im.crisp.sdk.api.CrispSessionController.User.setNickname] |
-| `Crisp.runBotScenario` | [CrispChatboxController.bot.runScenario][im.crisp.sdk.api.CrispChatboxController.Bot.runScenario] |
-| `Crisp.searchHelpdesk` | [CrispChatboxController.helpdesk.search][im.crisp.sdk.api.CrispChatboxController.Helpdesk.search] |
-| `Crisp.openHelpdeskArticle` | [CrispChatboxController.helpdesk.openArticle][im.crisp.sdk.api.CrispChatboxController.Helpdesk.openArticle], whose `locale` now comes first |
-| `Crisp.showMessage` | [CrispChatboxController.message.show][im.crisp.sdk.api.CrispChatboxController.Message.show] |
-| `Crisp.addCallback`, `removeCallback` | [CrispChatboxController.addEventCallbacks][im.crisp.sdk.api.CrispChatboxController.addEventCallbacks], [removeEventCallbacks][im.crisp.sdk.api.CrispChatboxController.removeEventCallbacks] |
-| `Crisp.addLogger`, `setLogLevel` | [Crisp.addLogger][im.crisp.sdk.api.Crisp.addLogger], [setLogLevel][im.crisp.sdk.api.Crisp.setLogLevel], now with a [CrispLogger][im.crisp.sdk.api.CrispLogger] and a `Log` priority |
-| `Crisp.getSDKVersion` | [Crisp.version][im.crisp.sdk.api.Crisp.version] |
-| `Crisp.enableNotifications` | Coming soon |
+| `Crisp.runBotScenario`                                                                     | [CrispChatboxController.bot.runScenario][im.crisp.sdk.api.CrispChatboxController.Bot.runScenario]                                                                                                                                                                                                                                                                                     |
+| `Crisp.searchHelpdesk`                                                                     | [CrispChatboxController.helpdesk.search][im.crisp.sdk.api.CrispChatboxController.Helpdesk.search]                                                                                                                                                                                                                                                                                     |
+| `Crisp.openHelpdeskArticle`                                                                | [CrispChatboxController.helpdesk.openArticle][im.crisp.sdk.api.CrispChatboxController.Helpdesk.openArticle], whose `locale` now comes first                                                                                                                                                                                                                                           |
+| `Crisp.showMessage`                                                                        | [CrispChatboxController.message.show][im.crisp.sdk.api.CrispChatboxController.Message.show]                                                                                                                                                                                                                                                                                           |
+| `Crisp.addCallback`, `removeCallback`                                                      | [CrispChatboxController.addEventCallbacks][im.crisp.sdk.api.CrispChatboxController.addEventCallbacks], [removeEventCallbacks][im.crisp.sdk.api.CrispChatboxController.removeEventCallbacks]                                                                                                                                                                                           |
+| `Crisp.addLogger`, `setLogLevel`                                                           | [Crisp.addLogger][im.crisp.sdk.api.Crisp.addLogger], [setLogLevel][im.crisp.sdk.api.Crisp.setLogLevel], now with a [CrispLogger][im.crisp.sdk.api.CrispLogger] and a `Log` priority                                                                                                                                                                                                   |
+| `Crisp.getSDKVersion`                                                                      | [Crisp.version][im.crisp.sdk.api.Crisp.version]                                                                                                                                                                                                                                                                                                                                       |
+| `Crisp.enableNotifications`                                                                | Coming soon                                                                                                                                                                                                                                                                                                                                                                           |
 
 [CrispChatboxController][im.crisp.sdk.api.CrispChatboxController] also adds the getters of the user and session data, e.g. [user.getEmail][im.crisp.sdk.api.CrispChatboxController.User.getEmail] or [session.isOngoing][im.crisp.sdk.api.CrispChatboxController.Session.isOngoing].
 
@@ -192,14 +192,14 @@ Embeddable chatbox components, for Jetpack Compose, Views and Fragments.
 
 ## Choosing a component
 
-| Component | Toolkit | Presentation |
-|---|---|---|
-| [CrispBottomSheetModal][im.crisp.sdk.ui.CrispBottomSheetModal] | Compose | Modal bottom sheet |
-| [CrispChatbox][im.crisp.sdk.ui.CrispChatbox] | Compose | In your layout |
-| [CrispChat.show][im.crisp.sdk.ui.CrispChat.show] | Any, with a `FragmentActivity` | Modal bottom sheet, in one call |
-| [CrispBottomSheetDialogFragment][im.crisp.sdk.ui.CrispBottomSheetDialogFragment] | Fragment | Modal bottom sheet |
-| [CrispFragment][im.crisp.sdk.ui.CrispFragment] | Fragment | In your layout, as a fragment |
-| [CrispChatboxView][im.crisp.sdk.ui.CrispChatboxView] | View | In your layout, as a view |
+| Component                                                                        | Toolkit                        | Presentation                    |
+|----------------------------------------------------------------------------------|--------------------------------|---------------------------------|
+| [CrispBottomSheetModal][im.crisp.sdk.ui.CrispBottomSheetModal]                   | Compose                        | Modal bottom sheet              |
+| [CrispChatbox][im.crisp.sdk.ui.CrispChatbox]                                     | Compose                        | In your layout                  |
+| [CrispChat.show][im.crisp.sdk.ui.CrispChat.show]                                 | Any, with a `FragmentActivity` | Modal bottom sheet, in one call |
+| [CrispBottomSheetDialogFragment][im.crisp.sdk.ui.CrispBottomSheetDialogFragment] | Fragment                       | Modal bottom sheet              |
+| [CrispFragment][im.crisp.sdk.ui.CrispFragment]                                   | Fragment                       | In your layout, as a fragment   |
+| [CrispChatboxView][im.crisp.sdk.ui.CrispChatboxView]                             | View                           | In your layout, as a view       |
 
 The page of each component has its integration sample.
 
