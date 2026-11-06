@@ -141,8 +141,8 @@ fun App() {
 
 # Documentation
 👉 For more details, please go to: 
-- [Crisp Developer Hub — Android SDK guide](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/),
-- [Dokka reference documentation](https://crisp-im.github.io/crisp-sdk-android/).
+- [Crisp Developer Hub — Android SDK guide](https://docs.crisp.chat/guides/chatbox-sdks/android-sdk/) (version 2.x),
+- [Dokka reference documentation](https://crisp-im.github.io/crisp-sdk-android/) (version 3.x).
 
 # Examples of companies using Crisp Chat Android SDK
 
