@@ -445,6 +445,11 @@ class CrispChatboxView @JvmOverloads constructor(
             child.dispatchApplyWindowInsets(childViewInsets)
         }
 
+        // Once ready, as set on ready, and the system bars may change afterwards
+        if (store.state.value is CrispChatboxState.Ready) {
+            webView?.fixSafeArea(edgeToEdge)
+        }
+
         return insets
     }
 

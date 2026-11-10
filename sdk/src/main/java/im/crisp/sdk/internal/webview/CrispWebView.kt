@@ -138,8 +138,10 @@ internal class CrispWebView @JvmOverloads constructor(
 
         crispWebViewClient = CrispWebViewClient(
             context,
-            store
-        ) { view, didCrash -> if (view == this) onRenderProcessGone(didCrash) }
+            store,
+            onPageStarted = { view -> if (view == this) topSafeAreaInsetDp = null },
+            onRenderProcessGone = { view, didCrash -> if (view == this) onRenderProcessGone(didCrash) }
+        )
         webViewClient = crispWebViewClient
         webChromeClient = CrispWebChromeClient(store)
 
@@ -295,6 +297,15 @@ internal class CrispWebView @JvmOverloads constructor(
 
     // region fixes
 
+    // The top safe area last set on the current page, reset when another page starts
+    private var topSafeAreaInsetDp: Int? = null
+
+    /**
+     * Sets the top safe area of the page to the system bars, if it does not include them on its own.
+     *
+     * Only when it changes, as called on each insets change: they can change once the page is ready,
+     * e.g. when an activity hiding the status bar (camera) returns to this one.
+     */
     internal fun fixSafeArea(edgeToEdge: EdgeToEdge) {
         // Before Android 11 or WebView 140, the safe area does not include the system bars, add them
         if (!CrispWebViewSupport.reportsSafeArea(context) && edgeToEdge.top) {
@@ -302,6 +313,8 @@ internal class CrispWebView @JvmOverloads constructor(
                 WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
             )?.top ?: 0
             val topSystemInsetDp = (topSystemInset / resources.displayMetrics.density).toInt()
+            if (topSystemInsetDp == topSafeAreaInsetDp) return
+            topSafeAreaInsetDp = topSystemInsetDp
 
             val insetTopCss = "document.documentElement.style.setProperty(" +
                     "'--crisp-override-env-safe-area-inset-top', " +
