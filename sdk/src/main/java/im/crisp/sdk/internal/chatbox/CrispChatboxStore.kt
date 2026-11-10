@@ -33,6 +33,10 @@ internal class CrispChatboxStore(
     val clientEvents: SharedFlow<CrispClientEvent> = _clientEvents.asSharedFlow()
 
     // Called by CrispChatboxView
+    // Whether the socket of the page is connected, from the Web client logs
+    private val _isSocketConnected = MutableStateFlow(false)
+    val isSocketConnected: StateFlow<Boolean> = _isSocketConnected.asStateFlow()
+
     internal fun onConfigLoaded(config: CrispConfig) {
         _config.value = config
     }
@@ -51,6 +55,7 @@ internal class CrispChatboxStore(
     // Called by WebViewClient / WebChromeClient / Bridge
     internal fun onPageStarted() {
         onPageReady = null
+        _isSocketConnected.value = false
         _state.value = CrispChatboxState.Loading
     }
 
@@ -62,6 +67,10 @@ internal class CrispChatboxStore(
         }
         _state.value = CrispChatboxState.Ready
         emitClientEvent(CrispClientEvent.Loaded)
+    }
+
+    internal fun onSocketStateChanged(isConnected: Boolean) {
+        _isSocketConnected.value = isConnected
     }
 
     internal fun emitClientEvent(event: CrispClientEvent) {

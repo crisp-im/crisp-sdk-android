@@ -2,12 +2,14 @@ package im.crisp.sdk.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import android.webkit.ValueCallback
 import android.widget.FrameLayout
 import androidx.core.view.OneShotPreDrawListener
 import androidx.core.view.ViewCompat
@@ -30,8 +32,10 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxState
 import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.CrispControllerDispatcher
 import im.crisp.sdk.internal.chatbox.CrispSessions
+import im.crisp.sdk.internal.chatbox.CrispSocketLifecycle
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.findActivity
+import im.crisp.sdk.internal.environment.isAppInForegroundAndOnline
 import im.crisp.sdk.internal.environment.isDebuggable
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.environment.openExternalUrl
@@ -48,9 +52,11 @@ import im.crisp.sdk.internal.views.showCopyMenu
 import im.crisp.sdk.internal.webview.CrispClientException
 import im.crisp.sdk.internal.webview.CrispWebView
 import im.crisp.sdk.internal.webview.CrispWebViewSupport
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -253,6 +259,7 @@ class CrispChatboxView @JvmOverloads constructor(
         webView?.clientBridge?.let(::attachController)
         // Loads once started, if needed
         startStateEventCollection()
+        startSocketLifecycle()
     }
 
     override fun onDetachedFromWindow() {
@@ -268,6 +275,7 @@ class CrispChatboxView @JvmOverloads constructor(
         permissionManager.unregisterLaunchers()
         permissionManager.dismiss()
         cancelStateEventCollection()
+        cancelSocketLifecycle()
         cancelLoadingTimeout()
         // Scheduled again once attached, as still needing to load
         cancelWebViewCreation()
@@ -708,13 +716,14 @@ class CrispChatboxView @JvmOverloads constructor(
     }
 
     private var loadingTimeoutJob: Job? = null
+    // How long the chatbox may take to be usable, to load, or to connect again before uploading
+    private val loadingTimeout: Duration
+        get() = if (context.isDebuggable) LOADING_TIMEOUT_DEBUG else LOADING_TIMEOUT_RELEASE
 
     private fun startLoadingTimeout() {
         val lifecycle = observedLifecycle ?: return
-        val timeoutDuration =
-            if (context.isDebuggable) LOADING_TIMEOUT_DEBUG else LOADING_TIMEOUT_RELEASE
         loadingTimeoutJob = lifecycle.coroutineScope.launch {
-            val readyState = withTimeoutOrNull(timeoutDuration) {
+            val readyState = withTimeoutOrNull(loadingTimeout) {
                 store.state.first { it is CrispChatboxState.Ready }
             }
             if (readyState == null) {
@@ -855,7 +864,9 @@ class CrispChatboxView @JvmOverloads constructor(
                                 event.y
                             )
 
-                            is CrispChatboxEvent.Upload -> uploadManager.showChooser(event.filePathCallback)
+                            is CrispChatboxEvent.Upload -> uploadManager.showChooser(
+                                event.filePathCallback?.afterSocketConnected()
+                            )
                         }
                     }
                 }
@@ -868,6 +879,113 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun cancelStateEventCollection() {
         collectionJob?.cancel()
         collectionJob = null
+    }
+
+    // endregion
+
+    // region Socket
+
+    // Disconnects the Web socket when the app goes in background or offline,
+    // connects it back once in foreground and online again.
+    // Kept with the view, as the page keeps its socket when detached.
+    private val socketLifecycle = CrispSocketLifecycle(
+        connect = { webView?.clientBridge?.connectSocket() },
+        disconnect = { webView?.clientBridge?.disconnectSocket() }
+    )
+    private var socketJob: Job? = null
+
+    /**
+     * Starts following the app state, even once stopped (unlike states and events),
+     * to disconnect in background.
+     */
+    private fun startSocketLifecycle() {
+        val lifecycle = observedLifecycle ?: return
+        socketJob = lifecycle.coroutineScope.launch {
+            context.isAppInForegroundAndOnline()
+                .combine(store.state) { shouldConnect, state -> shouldConnect to state }
+                .collect { (shouldConnect, state) ->
+                    try {
+                        socketLifecycle.update(shouldConnect, state)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: JSEvaluationException.PageUnloaded) {
+                        // Replaced by another page, which connects on its own
+                    } catch (e: Exception) {
+                        val action = if (shouldConnect) "connect" else "disconnect"
+                        log(Level.WARN, LOG_TAG, "Cannot $action the socket", e)
+                    }
+                }
+        }
+    }
+
+    private fun cancelSocketLifecycle() {
+        socketJob?.cancel()
+        socketJob = null
+    }
+
+    /**
+     * Hands the chosen files to the page once its socket is connected,
+     * as the page drops them while disconnected,
+     * which it is when coming back from the activity that chose them (camera, files, etc.).
+     * Only the socket is needed, not the session to be joined again.
+     *
+     * Drops them if it cannot connect in time (e.g. when offline) or once destroyed,
+     * see [dropUpload].
+     * A canceled choice (`null`) is passed on right away,
+     * as the page cannot choose files again until told.
+     */
+    private fun ValueCallback<Array<out Uri?>?>.afterSocketConnected() =
+        ValueCallback<Array<out Uri?>?> { uris ->
+            if (uris == null) {
+                onReceiveValue(null)
+                return@ValueCallback
+            }
+            val scope = observedLifecycle?.coroutineScope
+            if (scope == null) {
+                dropUpload(uris, "the chatbox is destroyed")
+                return@ValueCallback
+            }
+            scope.launch {
+                // Whether the socket is connected, or not if it did not connect in time
+                val isConnected = try {
+                    withTimeoutOrNull(loadingTimeout) {
+                        socketLifecycle.connectNow()
+                        // connectSocket returns before connecting, so wait for it to be
+                        store.isSocketConnected.first { it }
+                    } ?: false
+                } catch (e: CancellationException) {
+                    dropUpload(uris, "the chatbox is destroyed")
+                    throw e
+                } catch (e: Exception) {
+                    dropUpload(uris, "the socket cannot connect", e)
+                    return@launch
+                }
+                if (isConnected) {
+                    onReceiveValue(uris)
+                } else {
+                    dropUpload(uris, "the socket did not connect in time")
+                }
+            }
+        }
+
+    /**
+     * Drops the chosen files, which the page would drop anyway while its socket is disconnected.
+     * Deletes those taken by the camera, and tells the page the choice is canceled,
+     * so that it can choose again.
+     */
+    private fun ValueCallback<Array<out Uri?>?>.dropUpload(
+        uris: Array<out Uri?>,
+        reason: String,
+        throwable: Throwable? = null
+    ) {
+        log(
+            Level.ERROR,
+            LOG_TAG,
+            "Cannot upload ${uris.size} file(s), as $reason",
+            throwable
+        )
+        uploadManager.deleteTempFiles(uris)
+        onReceiveValue(null)
     }
 
     // endregion

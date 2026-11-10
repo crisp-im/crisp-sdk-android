@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets the chatbox disconnect its Web socket when offline, and connect it back once online -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Lets CrispWebViewSupport tell if a Play Store can open the WebView update page -->
     <queries>
