@@ -36,7 +36,8 @@ object Crisp {
 
     /**
      * Only logs the SDK and Web client logs of [priority] or higher, whether to Logcat or to the registered
-     * [loggers][addLogger]. Defaults to [Log.VERBOSE][android.util.Log.VERBOSE], logging everything.
+     * [loggers][addLogger]. Defaults to [Log.WARN][android.util.Log.WARN], logging warnings and errors.
+     * Use [Log.VERBOSE][android.util.Log.VERBOSE] to log everything, e.g. while debugging.
      *
      * The Web client `log` level maps to [Log.VERBOSE][android.util.Log.VERBOSE].
      *

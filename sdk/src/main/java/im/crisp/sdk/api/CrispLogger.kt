@@ -6,13 +6,12 @@ package im.crisp.sdk.api
  * While none is registered, logs go to Logcat.
  * Once one is registered, they only go to the registered loggers, until all of them are removed.
  *
- * Register it early, e.g. to forward warnings and errors to your own logging tool, with
- * [Crisp.setLogLevel] filtering out the others, whether a logger is registered or not:
+ * Register it early, e.g. to forward warnings and errors to your own logging tool, the others being
+ * filtered out by default by [Crisp.setLogLevel], whether a logger is registered or not:
  * ```
  * class App : Application() {
  *     override fun onCreate() {
  *         super.onCreate()
- *         Crisp.setLogLevel(Log.WARN)
  *         Crisp.addLogger { priority, tag, message ->
  *             crashReporter.log("$tag: $message")
  *         }
