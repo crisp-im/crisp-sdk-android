@@ -105,13 +105,13 @@ The SDK is published as `im.crisp:crisp-sdk` (AAR, public API sources and docume
 
 Gradle reads them from `ORG_GRADLE_PROJECT_<name>` env vars, never from `gradle.properties` (committed):
 
-| Env var | Value |
-| --- | --- |
-| `ORG_GRADLE_PROJECT_crispSdkSigningKeyId` | Short ID of the signing key (last 8 hex characters of its fingerprint) |
-| `ORG_GRADLE_PROJECT_crispSdkSigningKey` | ASCII-armored private signing key |
-| `ORG_GRADLE_PROJECT_crispSdkSigningPassword` | Passphrase of the signing key |
-| `ORG_GRADLE_PROJECT_crispSdkMavenCentralUser` | Central Portal user token username |
-| `ORG_GRADLE_PROJECT_crispSdkMavenCentralToken` | Central Portal user token password |
+| Env var                                        | Value                                                                  |
+|------------------------------------------------|------------------------------------------------------------------------|
+| `ORG_GRADLE_PROJECT_crispSdkSigningKeyId`      | Short ID of the signing key (last 8 hex characters of its fingerprint) |
+| `ORG_GRADLE_PROJECT_crispSdkSigningKey`        | ASCII-armored private signing key                                      |
+| `ORG_GRADLE_PROJECT_crispSdkSigningPassword`   | Passphrase of the signing key                                          |
+| `ORG_GRADLE_PROJECT_crispSdkMavenCentralUser`  | Central Portal user token username                                     |
+| `ORG_GRADLE_PROJECT_crispSdkMavenCentralToken` | Central Portal user token password                                     |
 
 The Maven Central credentials are also used to download pending deployments for release testing, read directly from the `crisp-sdk-maven-central-user` and `crisp-sdk-maven-central-token` Keychain items (macOS only) by `settings.gradle.kts`, which builds the `Authorization` header from them. The release testing repository is only declared when both are found.
 

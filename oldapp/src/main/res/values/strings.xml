@@ -1,0 +1,10 @@
+<resources>
+    <!-- Same as `app` -->
+    <string-array name="crisp_websites_id" translatable="false">
+        <item>-JzqEmX56venQuQw4YV8</item>
+    </string-array>
+    <string-array name="crisp_websites_name" translatable="false">
+        <item>Crisp</item>
+    </string-array>
+    <string name="app_name">Crisp SDK pre-3.x Catalog</string>
+</resources>

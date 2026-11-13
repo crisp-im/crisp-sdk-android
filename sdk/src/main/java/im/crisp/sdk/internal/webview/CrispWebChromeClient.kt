@@ -45,10 +45,6 @@ internal class CrispWebChromeClient(
         filePathCallback: ValueCallback<Array<out Uri?>?>?,
         fileChooserParams: FileChooserParams?
     ): Boolean {
-        // TODO: if Web socket is not connected when file chooser is triggered
-        //  or when native replies (if user take a long time to achieve his action),
-        //  Web seems to drop the action?
-        //  on iOS, there are methods to connect/disconnectSocket, use them
         store.emitEvent(CrispChatboxEvent.Upload(filePathCallback))
         return true
     }

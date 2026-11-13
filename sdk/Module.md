@@ -73,6 +73,29 @@ The [app module](https://github.com/crisp-im/crisp-sdk-android/tree/beta/app/src
 
 To make the first chatbox show faster, you can call [Crisp.preheat][im.crisp.sdk.api.Crisp.preheat] early, e.g. from `Application.onCreate`.
 
+### Audio recording and calls
+
+The SDK declares no permission that needs the user's consent, so declare those of the features you want in your `AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Audio recordings, and audio/video calls with your operators -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Video calls with your operators -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Otherwise declaring CAMERA hides your app from devices without camera on Google Play -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+</manifest>
+```
+
+The chatbox asks the user for them when needed, explaining why. Without them, these features are not available, and the SDK logs which permission is missing. Users can still send photos and videos taken with their camera app, which needs no permission, unless you declare `CAMERA`: Android then requires it, so the chatbox asks for it first.
+
 ## Coming from SDK 2.x
 
 ### The chatbox is configured where it is presented
@@ -153,6 +176,22 @@ fun Support(user: User) {
 | `Crisp.enableNotifications`                                                                | Coming soon                                                                                                                                                                                                                                                                                                                                                                           |
 
 [CrispChatboxController][im.crisp.sdk.api.CrispChatboxController] also adds the getters of the user and session data, e.g. [user.getEmail][im.crisp.sdk.api.CrispChatboxController.User.getEmail] or [session.isOngoing][im.crisp.sdk.api.CrispChatboxController.Session.isOngoing].
+
+### Sessions of SDK 1.0.15+ are restored once
+
+When your users update your app, the session saved by SDK 1.0.15 and above is restored in the first chatbox loading its website, so that they find their conversation. It is then removed, so it is restored only once. Sessions saved by SDK 1.0.14 and below are never restored. The other files of the previous SDK (its cache and the photos taken to be sent) are deleted, except its notification settings.
+
+It is only restored for a chatbox without `tokenId`, and only if no `tokenId` was set for its website in pre-3.x SDK:
+
+- With a `tokenId`, the chatbox restores the session of the user on its own, as on the Web.
+- If a `tokenId` was still set in pre-3.x SDK, a user was logged in, so their session is not shown to whoever uses the chatbox without `tokenId`. They will find it once logged in, except a conversation started before logging in, which is not kept either on the Web (see [session continuity](https://docs.crisp.chat/guides/chatbox-sdks/web-sdk/session-continuity/)).
+
+Pre-3.x SDK did not tie a session to a `tokenId` though: unsetting it with `Crisp.setTokenID(null)` kept the session of the user, until `Crisp.resetChatSession` was called. So if your app logged users out without resetting the session, the restored session may be one of a user who was logged in. If a user is logged out when your app updates, [reset the session][im.crisp.sdk.api.CrispSessionController.Session.reset] before showing the chatbox, as you would on logout:
+
+```kotlin
+// E.g. on logout, or once after updating if logged out
+CrispSessionController(context, CrispConfig(websiteId = "YOUR_WEBSITE_ID")).session.reset()
+```
 
 ## Events and logs
 

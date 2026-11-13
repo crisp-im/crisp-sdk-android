@@ -30,7 +30,14 @@ class CrispControllerDispatcherTest {
         val config = MutableStateFlow<CrispConfig?>(config)
         val state = MutableStateFlow<CrispChatboxState>(CrispChatboxState.Loading)
         var reloads = 0
-        val chatbox = CrispControllerDispatcher.Chatbox(bridge, this.config, state) { reloads++ }
+        // The functions called when the session is about to be reset
+        var functionsBeforeReset: List<String>? = null
+        val chatbox = CrispControllerDispatcher.Chatbox(
+            bridge,
+            this.config,
+            state,
+            beforeReset = { functionsBeforeReset = functions }
+        ) { reloads++ }
 
         /** The called Web client functions, e.g. `setUserEmail`. */
         val functions get() = scripts.map { it.substringAfter("CrispClient.").substringBefore("(") }
@@ -160,6 +167,17 @@ class CrispControllerDispatcherTest {
             assertEquals(1, chatbox.reloads)
             assertTrue(preferences.values.isEmpty())
         }
+
+    @Test fun `a chatbox is told before its session is reset`() = runTest(UnconfinedTestDispatcher()) {
+        val chatbox = FakeChatbox(config)
+        dispatcher.attach(chatbox.chatbox)
+        chatbox.state.value = CrispChatboxState.Ready
+
+        dispatcher.reset(key)
+
+        assertEquals(emptyList<String>(), chatbox.functionsBeforeReset)
+        assertEquals(listOf("reset"), chatbox.functions)
+    }
 
     @Test fun `a failed reset fails the calls made meanwhile, and is retried on the next preparation`() =
         runTest(UnconfinedTestDispatcher()) {

@@ -31,6 +31,7 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
 import im.crisp.sdk.internal.chatbox.CrispChatboxState
 import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.CrispControllerDispatcher
+import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.chatbox.CrispSessions
 import im.crisp.sdk.internal.chatbox.CrispSocketLifecycle
 import im.crisp.sdk.internal.environment.Level
@@ -590,7 +591,10 @@ class CrispChatboxView @JvmOverloads constructor(
                 CrispControllerDispatcher.Chatbox(
                     it,
                     store.config,
-                    store.state
+                    store.state,
+                    beforeReset = {
+                        store.config.value?.let { config -> forgetLegacySession(config.websiteId) }
+                    }
                 ) { load() }
             )
         }
@@ -635,6 +639,9 @@ class CrispChatboxView @JvmOverloads constructor(
     internal val config: CrispConfig? get() = store.config.value
     private var pendingConfig: CrispConfig? = null
     private val sessions: CrispSessions by lazy { CrispSessions.from(context) }
+    private val legacyStorage: CrispLegacyStorage by lazy {
+        CrispLegacyStorage.from(context).also { it.cleanUpOnce() }
+    }
     private val controllerDispatcher: CrispControllerDispatcher by lazy {
         CrispControllerDispatcher.get(
             context
@@ -705,10 +712,14 @@ class CrispChatboxView @JvmOverloads constructor(
         store.onPageStarted()
         val mustReset = sessions.onLoad(config)
         store.holdNextReady { prepareSessionThenReady(config, mustReset) }
+        // Not when reset, which removes it before reloading
+        val legacySessionId = if (mustReset) null else legacyStorage.sessionId(config)
+        legacySessionId?.let { removeLegacySessionOnceSaved(config.websiteId) }
         cancelLoadingTimeout()
         startLoadingTimeout()
         try {
-            (webView ?: throw CrispClientException.WebViewUnavailable()).load(config)
+            (webView ?: throw CrispClientException.WebViewUnavailable())
+                .load(legacySessionId?.let { config.copy(sessionId = it) } ?: config)
         } catch (e: CrispClientException) {
             cancelLoadingTimeout()
             store.onError(e)
@@ -783,6 +794,7 @@ class CrispChatboxView @JvmOverloads constructor(
 
     private suspend fun resetSessionThenReload(config: CrispConfig, bridge: CrispClientBridge) {
         try {
+            forgetLegacySession(config.websiteId)
             bridge.reset()
             sessions.onSessionReset(config.websiteId)
             controllerDispatcher.onSessionReset(config)
@@ -804,6 +816,41 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun cancelSessionPreparation() {
         sessionPreparationJob?.cancel()
         sessionPreparationJob = null
+        legacySessionRemovalJob?.cancel()
+        legacySessionRemovalJob = null
+    }
+
+    /** Removes the restored session of the pre-3.x SDK once saved, see [removeLegacySessionOnceSaved] */
+    private var legacySessionRemovalJob: Job? = null
+
+    /**
+     * Removes the session of the pre-3.x SDK restored for [websiteId] once the Web client saved it,
+     * so that it is only restored once, but again if the page is replaced before (e.g. offline).
+     * Also stops the page from restoring it again, see [CrispWebView.clearSessionId].
+     *
+     * The Web client saves the session it joins when its socket connects, in the same `connect`
+     * dispatch as the log telling it is connected, so before it reaches [store].
+     */
+    private fun removeLegacySessionOnceSaved(websiteId: String) {
+        val scope = observedLifecycle?.coroutineScope ?: return
+        legacySessionRemovalJob = scope.launch {
+            store.isSocketConnected.first { it }
+            webView?.clearSessionId()
+            legacyStorage.remove(websiteId)
+            legacySessionRemovalJob = null
+        }
+    }
+
+    /**
+     * Before resetting the session of [websiteId], stops restoring the session of the pre-3.x SDK
+     * if not saved yet: neither in the page, which initializes again with it when resetting,
+     * nor when reloading.
+     */
+    private fun forgetLegacySession(websiteId: String) {
+        legacySessionRemovalJob?.cancel()
+        legacySessionRemovalJob = null
+        webView?.clearSessionId()
+        legacyStorage.remove(websiteId)
     }
 
     // endregion

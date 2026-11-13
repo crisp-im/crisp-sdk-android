@@ -25,7 +25,7 @@ Private:
   - `views`: native views used alongside the WebView for state (loading and error).
   - `upload`: file upload feature.
   - `permission`: permission feature.
-  - `chatbox`: state management and events.
+  - `chatbox`: state management and events. Also restores once the sessions of the native SDK (1.0.15 to 2.x, `CrispLegacyStorage`), as described in `sdk/Module.md`, and deletes its other files, except its `notification_*` cache entries.
   - `environment`: everything else (extensions, locales, logging, shared code).
 
 ## Web client and strings generation

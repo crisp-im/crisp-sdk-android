@@ -70,5 +70,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "DemoApp"
 include(":app")
+// `app` with the pre-3.x SDK, to test the migration of its sessions
+include(":oldapp")
 include(":sdk")
 // `client` is not a module: its generated sources, assets and res are bundled into `sdk` (see `sdk/build.gradle.kts`)

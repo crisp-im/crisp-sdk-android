@@ -14,8 +14,6 @@
     </queries>
 
     <application>
-        <!-- TODO: do not forget to remove the FileProvider merging in the doc
-                (see: https://github.com/crisp-im/crisp-sdk-android/wiki/1.-Installation#7-add-crisp-authority-and-path-to-your-fileprovider-if-any) -->
         <provider
             android:name="im.crisp.sdk.internal.upload.CrispFileProvider"
             android:authorities="${applicationId}.im.crisp.sdk.fileprovider"

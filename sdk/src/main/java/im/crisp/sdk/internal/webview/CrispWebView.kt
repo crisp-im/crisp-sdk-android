@@ -214,6 +214,22 @@ internal class CrispWebView @JvmOverloads constructor(
             .replace("{{ASSETS_URL}}", assetsUrl)
     }
 
+    /**
+     * Stops restoring the session passed in [load] (see [sessionId][CrispConfig]), once joined,
+     * as the Web client initializes again with it when it resets its session in the page
+     * (e.g. purged by an operator), which would restore it instead of starting a new one.
+     */
+    internal fun clearSessionId() {
+        // No optional chaining, see index.html
+        evaluateJavascript(
+            "(function () { " +
+                "var crisp = document.getElementById('crisp'); " + 
+                "if (crisp) { crisp.removeAttribute('session-id'); } " +
+            "})();",
+            null
+        )
+    }
+
     fun clear() {
         webViewBridge?.rejectPendingCalls()
         stopLoading()
