@@ -10,3 +10,7 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+# Firebase Cloud Messaging is compile-only (notifications), so apps without it miss its classes,
+# only referenced by the SDK once checked to be available at runtime
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.tasks.**

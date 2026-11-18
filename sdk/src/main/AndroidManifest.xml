@@ -23,6 +23,18 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/crisp_sdk_file_paths" />
         </provider>
+
+        <!-- Opens the chatbox of a notification tapped in a bottom sheet, above the app,
+             see CrispNotifications.handleNotification(opensChatbox).
+             Handles the size changes (rotation, resizing, multi-window, foldables) not to reload the chatbox,
+             as its sheet follows the window insets. Recreated on the others (uiMode, locale, layoutDirection,
+             fontScale, density), which change the resources the chatbox and its native views are created with. -->
+        <activity
+            android:name="im.crisp.sdk.internal.notification.CrispNotificationActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Crisp.SDK.Translucent" />
     </application>
 
 </manifest>

@@ -1,6 +1,7 @@
 package im.crisp.sdk.internal.permission
 
 import android.Manifest
+import android.annotation.SuppressLint
 import im.crisp.sdk.R
 
 /**
@@ -38,6 +39,20 @@ internal enum class CrispPermissionIntent(
         permissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA),
         titleRes = R.string.crisp_sdk_alert_permission_audio_video_title,
         messageRes = R.string.crisp_sdk_alert_permission_audio_video_message,
+    ),
+
+    /**
+     * Notifications, from the prompt in the chat (Android 13+).
+     *
+     * @see [CrispNotificationSync.promptIfNeeded][im.crisp.sdk.internal.notification.CrispNotificationSync.promptIfNeeded]
+     *
+     * TODO: dedicated `sdk.alert_permission_notification_title` and `_message` strings, once added to crisp-client
+     */
+    @SuppressLint("InlinedApi")
+    NOTIFICATIONS(
+        permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
+        titleRes = R.string.crisp_sdk_action_notifications_enable,
+        messageRes = R.string.crisp_sdk_prompt_notification_ask,
     );
 
     companion object {

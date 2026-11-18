@@ -42,8 +42,9 @@ internal class CrispControllerDispatcher(
         val bridge: CrispClientBridge,
         val config: StateFlow<CrispConfig?>,
         val state: StateFlow<CrispChatboxState>,
-        // Run before resetting its session, e.g. not to restore the one it was loaded with again
-        val beforeReset: () -> Unit = {},
+        // Run before resetting its session, e.g. not to restore the one it was loaded with again,
+        // or to unregister its notifications
+        val beforeReset: suspend () -> Unit = {},
         // Reloads the chatbox, e.g. to start a new session once reset
         val reload: () -> Unit
     )

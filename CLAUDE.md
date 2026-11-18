@@ -25,7 +25,8 @@ Private:
   - `views`: native views used alongside the WebView for state (loading and error).
   - `upload`: file upload feature.
   - `permission`: permission feature.
-  - `chatbox`: state management and events. Also restores once the sessions of the native SDK (1.0.15 to 2.x, `CrispLegacyStorage`), as described in `sdk/Module.md`, and deletes its other files, except its `notification_*` cache entries.
+  - `notification`: push notifications (FCM), whose public API is `api.CrispNotifications`. `firebase-messaging` is `compileOnly`: only reference its classes from `CrispFirebase` (and `api.CrispNotificationService`), after `CrispFirebase.isAvailable`. Safety rules in `CrispNotificationPolicy`: never load a session from a notification `session_id`, and unregister an FCM token from the session it was registered on (the servers only unregister from the socket session, without acknowledging).
+  - `chatbox`: state management and events. Also restores once the sessions of the native SDK (1.0.15 to 2.x, `CrispLegacyStorage`), as described in `sdk/Module.md`, and deletes its other files, once its `notification_*` cache entries are migrated (`notification.CrispNotificationStore`).
   - `environment`: everything else (extensions, locales, logging, shared code).
 
 ## Web client and strings generation
@@ -43,7 +44,7 @@ The version is pinned in `.crisp-client-version` (a leading `v` is stripped). Bo
 - Downloads the same package and reads its per-locale JSON files (`src/locales/*.json`).
 - Keeps only the `_strings.sdk` group of each locale (the rest belongs to the web client UI). Each key `k` becomes the Android string `crisp_sdk_<k>`.
 - Wipes and regenerates `client/src/main/res/values*/strings.xml`. Apostrophes are escaped. `en` goes to `values`, other locales map to Android qualifiers (e.g. `he` to `values-iw`, `id` to `values-in`, `fr-be` to `values-fr-rBE`, Cyrillic and Serbian variants to `values-b+...`).
-- New or changed SDK strings must be added in crisp-client's locale files, not in `client`'s `strings.xml`.
+- New or changed SDK strings must be added in crisp-client's locale files, not in `client`'s `strings.xml`. Only non-translatable strings (e.g. the "Crisp" product name) go in `sdk/src/main/res/values/strings.xml`.
 
 ### Prerequisites
 `mise`, `npm`, `jq`, `tar`, and access to the private npm registry.

@@ -1,6 +1,8 @@
 package im.crisp.sdk.internal.chatbox
 
 import im.crisp.sdk.api.CrispConfig
+import im.crisp.sdk.internal.notification.CrispNotificationRecord
+import im.crisp.sdk.internal.notification.CrispNotificationSession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -230,6 +232,100 @@ class CrispLegacyStorageTest {
         assertNull(CrispLegacyStorage.parseSessionId("""{"session_id":"$SESSION_ID"}""".toByteArray()))
         assertNull(CrispLegacyStorage.parseSessionId(ByteArray(0)))
     }
+
+    // region Notifications
+
+    @Test fun `the notification settings of an enabled website are migrated with its session`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        File(directory, "notification_token.0").writeBytes(serialize("fcm"))
+        File(directory, "notification_status_$SESSION_ID.0").writeBytes(serialize(PermissionStatus.REPLIED))
+
+        assertEquals(
+            mapOf(
+                "website" to CrispNotificationRecord(
+                    enabled = true,
+                    session = CrispNotificationSession(SESSION_ID, notificationId = "fcm", promptAnswered = true),
+                )
+            ),
+            sessions.notificationRecords(),
+        )
+    }
+
+    @Test fun `the session of a migrated website keeps its tokenId, to load it again`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "token_website.0").writeBytes(serialize("user"))
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+
+        assertEquals("user", sessions.notificationRecords()["website"]?.session?.tokenId)
+    }
+
+    @Test fun `the prompt is not answered while only asked`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        File(directory, "notification_status_$SESSION_ID.0").writeBytes(serialize(PermissionStatus.ASKED))
+
+        assertEquals(false, sessions.notificationRecords()["website"]?.session?.promptAnswered)
+    }
+
+    @Test fun `a website without notifications enabled is not migrated`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(false))
+        File(directory, "notification_token.0").writeBytes(serialize("fcm"))
+
+        assertTrue(sessions.notificationRecords().isEmpty())
+    }
+
+    @Test fun `an enabled website without session is migrated without session`() {
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+
+        assertEquals(mapOf("website" to CrispNotificationRecord(enabled = true)), sessions.notificationRecords())
+    }
+
+    @Test fun `strings are read without resolving their class, unlike other objects`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        // TC_LONGSTRING, above 65535 bytes, read without class descriptor too
+        val longToken = "t".repeat(70_000)
+        File(directory, "notification_token.0").writeBytes(serialize(longToken))
+
+        assertEquals(longToken, sessions.notificationRecords()["website"]?.session?.notificationId)
+    }
+
+    @Test fun `another serialized class is not deserialized`() {
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(java.util.Date()))
+
+        assertTrue(sessions.notificationRecords().isEmpty())
+    }
+
+    @Test fun `the notification settings are removed once migrated, keeping the sessions`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        File(directory, "notification_token.0").writeBytes(serialize("fcm"))
+
+        sessions.removeNotifications()
+
+        assertFalse(File(directory, "notification_enabled_website.0").exists())
+        assertFalse(File(directory, "notification_token.0").exists())
+        assertEquals(SESSION_ID, sessions.sessionId(CrispConfig("website")))
+    }
+
+    @Test fun `the clean up runs after migrating, which still finds the tokened sessions`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "token_website.0").writeBytes(serialize("user"))
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+
+        var migrated: Map<String, CrispNotificationRecord>? = null
+        sessions.cleanUp { migrated = sessions.notificationRecords() }
+
+        assertEquals("user", migrated?.get("website")?.session?.tokenId)
+        assertFalse(File(directory, "token_website.0").exists())
+    }
+
+    /** As serialized by the pre-3.x SDK: only the constant name is read, not the class. */
+    private enum class PermissionStatus { NONE, ASKED, REPLIED }
+
+    // endregion
 
     private fun saveSession(websiteId: String, sessionId: String) {
         File(directory, "session_$websiteId.0").writeBytes(serializeSession(sessionId))

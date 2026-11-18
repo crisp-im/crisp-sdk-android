@@ -38,7 +38,10 @@ class OldCatalogApplication : Application() {
             }
         })
         // Configured again on each launch, without (re)setting the token ID, kept by the SDK
-        ChatboxPreferences.getWebsiteId(this)?.let { Crisp.configure(this, it) }
+        ChatboxPreferences.getWebsiteId(this)?.let {
+            Crisp.configure(this, it)
+            Crisp.enableNotifications(this, true);
+        }
     }
 
     companion object {

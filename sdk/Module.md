@@ -173,13 +173,13 @@ fun Support(user: User) {
 | `Crisp.addCallback`, `removeCallback`                                                      | [CrispChatboxController.addEventCallbacks][im.crisp.sdk.api.CrispChatboxController.addEventCallbacks], [removeEventCallbacks][im.crisp.sdk.api.CrispChatboxController.removeEventCallbacks]                                                                                                                                                                                           |
 | `Crisp.addLogger`, `setLogLevel`                                                           | [Crisp.addLogger][im.crisp.sdk.api.Crisp.addLogger], [setLogLevel][im.crisp.sdk.api.Crisp.setLogLevel], now with a [CrispLogger][im.crisp.sdk.api.CrispLogger] and a `Log` priority                                                                                                                                                                                                   |
 | `Crisp.getSDKVersion`                                                                      | [Crisp.version][im.crisp.sdk.api.Crisp.version]                                                                                                                                                                                                                                                                                                                                       |
-| `Crisp.enableNotifications`                                                                | Coming soon                                                                                                                                                                                                                                                                                                                                                                           |
+| `Crisp.enableNotifications`, `CrispNotificationClient`                                     | [CrispNotifications][im.crisp.sdk.api.CrispNotifications] and [CrispNotificationService][im.crisp.sdk.api.CrispNotificationService], see Notifications below                                                                                                                                                                                                                          |
 
 [CrispChatboxController][im.crisp.sdk.api.CrispChatboxController] also adds the getters of the user and session data, e.g. [user.getEmail][im.crisp.sdk.api.CrispChatboxController.User.getEmail] or [session.isOngoing][im.crisp.sdk.api.CrispChatboxController.Session.isOngoing].
 
 ### Sessions of SDK 1.0.15+ are restored once
 
-When your users update your app, the session saved by SDK 1.0.15 and above is restored in the first chatbox loading its website, so that they find their conversation. It is then removed, so it is restored only once. Sessions saved by SDK 1.0.14 and below are never restored. The other files of the previous SDK (its cache and the photos taken to be sent) are deleted, except its notification settings.
+When your users update your app, the session saved by SDK 1.0.15 and above is restored in the first chatbox loading its website, so that they find their conversation. It is then removed, so it is restored only once. Sessions saved by SDK 1.0.14 and below are never restored. Its notification settings are migrated (see Notifications below), then the other files of the previous SDK (its cache and the photos taken to be sent) are deleted.
 
 It is only restored for a chatbox without `tokenId`, and only if no `tokenId` was set for its website in pre-3.x SDK:
 
@@ -193,9 +193,96 @@ Pre-3.x SDK did not tie a session to a `tokenId` though: unsetting it with `Cris
 CrispSessionController(context, CrispConfig(websiteId = "YOUR_WEBSITE_ID")).session.reset()
 ```
 
+## Notifications
+
+The chatbox notifies the user of the replies of your operators with [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/android/get-started), see [CrispNotifications][im.crisp.sdk.api.CrispNotifications].
+
+1. Add Firebase to your app with `com.google.firebase:firebase-messaging` (25.1.2 or later, or BoM 34.18.0 or later). The SDK does not add it for you, not to force it on apps without notifications. The device is registered with its FCM registration token, or with its [Firebase installation ID](https://firebase.google.com/docs/cloud-messaging/android/client) if your app enables `firebase_messaging_installation_id_enabled`. The SDK follows the choice of your app.
+2. Set up your Firebase project in your Crisp Dashboard, in `Settings > Chatbox Settings > Push Notifications`.
+3. Declare the notification permission, which the chatbox asks for on Android 13 and later once the user sent a message:
+   ```xml
+   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+   ```
+4. Enable notifications for your website, e.g. from `Application.onCreate`:
+   ```kotlin
+   CrispNotifications.setEnabled(context, "YOUR_WEBSITE_ID", true)
+   ```
+5. Receive them, with [CrispNotificationService][im.crisp.sdk.api.CrispNotificationService] if Crisp is your only use of FCM, or from your own `FirebaseMessagingService`:
+   ```kotlin
+   override fun onMessageReceived(message: RemoteMessage) {
+       if (CrispNotifications.isCrispNotification(message)) {
+           CrispNotifications.handleNotification(this, message)
+       } else {
+           // Your notifications
+       }
+   }
+
+   // With firebase_messaging_installation_id_enabled
+   override fun onRegistered(installationId: String) {
+       CrispNotifications.onRegistered(this, installationId)
+   }
+
+   // Without it
+   override fun onNewToken(token: String) {
+       CrispNotifications.onNewToken(this, token)
+   }
+   ```
+6. That's it: tapping a notification opens the chatbox in a modal bottom sheet, above your launcher `Activity`. To show the chatbox component of your choice instead, pass `opensChatbox = false` to [handleNotification][im.crisp.sdk.api.CrispNotifications.handleNotification] (or override it in your [CrispNotificationService][im.crisp.sdk.api.CrispNotificationService]): the notification then only opens your launcher `Activity`, where [configFrom][im.crisp.sdk.api.CrispNotifications.configFrom] gives the chatbox to show:
+   ```kotlin
+   override fun onCreate(savedInstanceState: Bundle?) {
+       super.onCreate(savedInstanceState)
+       openCrispNotification(intent)
+   }
+
+   override fun onNewIntent(intent: Intent) {
+       super.onNewIntent(intent)
+       openCrispNotification(intent)
+   }
+
+   private fun openCrispNotification(intent: Intent) {
+       CrispNotifications.configFrom(this, intent)?.let { config ->
+           CrispChat.show(this, config.websiteId, config.tokenId)
+       }
+   }
+   ```
+
+Notifications are customized as Firebase ones, with the `com.google.firebase.messaging.default_notification_icon` and `default_notification_color` meta-data of your `AndroidManifest.xml` (by default, the Crisp icon and blue, in its light variant whatever the theme), and with the Crisp sound, which you can replace as in SDK 2.x by adding your own `res/raw/crisp_chat_message_receive` (any audio format, e.g. `.ogg`). Android only applies the sound when it creates the notification channel, so a sound changed afterwards only applies where the channel is created afterwards, e.g. on new installs.
+
+They are shown in a notification channel per website, named "Crisp" by default. Name them in your `AndroidManifest.xml`, for all websites, or for one, with its website ID as is. As a string resource, the name is translated in the language of the user:
+
+```xml
+<application>
+    <meta-data
+        android:name="im.crisp.sdk.notification.channel.default"
+        android:resource="@string/support_notification_channel" />
+    <meta-data
+        android:name="im.crisp.sdk.notification.channel.YOUR_WEBSITE_ID"
+        android:value="Sales" />
+</application>
+```
+
+Changing them later, or the language of the user, renames the channels, keeping the settings the user changed.
+
+### Which session is notified
+
+The device is notified of the replies to the session a chatbox last loaded for each website, once it is loaded. When a chatbox loads the website with another `tokenId` (e.g. another user logged in), the chatbox loads the previous session again for a moment first, to stop notifying the device of it, as Crisp only does so from the session itself. If it cannot be loaded in time (e.g. offline), its notifications are no longer shown, and the chatbox loads anyway. [Resetting the session][im.crisp.sdk.api.CrispSessionController.Session.reset] (e.g. on logout) stops showing its notifications right away, and stops notifying the device once a chatbox loads the website again.
+
+So a notification only opens the session it was sent for if it is still the last one of its website: [configFrom][im.crisp.sdk.api.CrispNotifications.configFrom] returns the `websiteId` and `tokenId` the session was loaded with, never another session, so that the conversations of a user are not shown to another one using the same device.
+
+If the session cannot be loaded anymore (its storage expired after about 6 months, or was cleared), the device stays registered on it for Crisp, but never shows its notifications. Loading it again by its session ID, then resetting it, would be cleaner, but is not worth a throwaway session for notifications that are not shown anyway.
+
+The device is only registered for Crisp, or updated, while a chatbox is loaded, as only its connection can do it. So when the FCM registration token or the Firebase installation ID of the device changes (e.g. FCM rotates it, or your app switches to the installation ID), notifications sent meanwhile are lost, until a chatbox loads the website again and registers the new one.
+
+### Coming from SDK 2.x
+
+`Crisp.enableNotifications` becomes [CrispNotifications.setEnabled][im.crisp.sdk.api.CrispNotifications.setEnabled], which takes the website, and can be called at any time. `CrispNotificationClient` methods move to [CrispNotifications][im.crisp.sdk.api.CrispNotifications], and `CrispNotificationService` to `im.crisp.sdk.api`, so update its declaration in your `AndroidManifest.xml`. As there is no `ChatActivity` anymore, `CrispNotificationClient.openChatbox` becomes [configFrom][im.crisp.sdk.api.CrispNotifications.configFrom], to show your chatbox component with. `EventsCallback.onNotificationReceived` becomes a [CrispNotificationListener][im.crisp.sdk.api.CrispNotificationListener], registered with [CrispNotifications.addListener][im.crisp.sdk.api.CrispNotifications.addListener] (e.g. from `Application.onCreate`), with the same data.
+
+Notification settings are migrated: websites with notifications enabled keep them, with their notification channel and the answer of the user to the prompt. If your app switches to the Firebase installation ID, the token registered by SDK 2.x is replaced by it on the session, once its chatbox loads.
+
 ## Events and logs
 
 - [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks] notifies you when a chatbox is opened or closed, when its session is loaded, and when a message is sent or received. Unlike the callbacks of SDK 2.x, they are registered per chatbox, on its controller.
+- [CrispNotificationListener][im.crisp.sdk.api.CrispNotificationListener] notifies you when a notification is shown. It is global, as notifications are received while no chatbox is shown.
 - [CrispLogger][im.crisp.sdk.api.CrispLogger] receives the logs of the SDK and its Web client instead of Logcat, for all chatboxes.
 
 ```kotlin

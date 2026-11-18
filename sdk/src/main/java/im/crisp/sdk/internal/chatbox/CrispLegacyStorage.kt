@@ -4,11 +4,17 @@ import android.content.Context
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
+import im.crisp.sdk.internal.notification.CrispNotificationRecord
+import im.crisp.sdk.internal.notification.CrispNotificationSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.InputStream
+import java.io.InvalidClassException
+import java.io.ObjectInputStream
+import java.io.ObjectStreamClass
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -36,7 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Entries are read as files, without `DiskLruCache`: each value is in `<key>.0`, only replaced once
  * committed. The native SDK is not used anymore, so its journal does not need to be updated.
  *
- * Its other files, and the sessions that are never restored, are [cleaned up][cleanUp].
+ * Its notification settings are [migrated][notificationRecords], then its other files, and the sessions that are
+ * never restored, are [cleaned up][cleanUp].
  */
 internal class CrispLegacyStorage(private val cacheDir: File, private val filesDir: File) {
     private val dataCacheDirectory = File(cacheDir, DATA_CACHE_DIRECTORY)
@@ -73,18 +80,108 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
     }
 
     /**
-     * [Cleans up][cleanUp] the files of the legacy pre-3.x SDK, once per process, in the background.
+     * [Cleans up][cleanUp] the files of the legacy pre-3.x SDK, once per process, in the background,
+     * after [beforeCleanUp], e.g. to migrate its notification settings, which need its sessions and `tokenIds`.
      */
-    fun cleanUpOnce() {
+    fun cleanUpOnce(beforeCleanUp: () -> Unit = {}) {
         if (isCleanedUp.compareAndSet(false, true)) {
-            cleanUpScope.launch { cleanUp() }
+            cleanUpScope.launch { cleanUp(beforeCleanUp) }
         }
     }
 
+    /** [Cleans up][cleanUp] after [beforeCleanUp], which is best effort, i.e. cleaned up even if it fails. */
+    internal fun cleanUp(beforeCleanUp: () -> Unit) {
+        try {
+            beforeCleanUp()
+        } catch (e: Exception) {
+            log(Level.WARN, LOG_TAG, "Cannot prepare the clean up of the files of the pre-3.x SDK", e)
+        }
+        cleanUp()
+    }
+
     /**
-     * Deletes the files of the legacy pre-3.x SDK, except, in its `DiskLruCache` (see [CrispLegacyStorage]):
+     * The notification settings of the pre-3.x SDK (see [CrispNotificationRecord]),
+     * by website key (lowercased `websiteId`), restored from its `DiskLruCache` (see [CrispLegacyStorage]),
+     * Java serialized:
+     * - `notification_enabled_<websiteKey>`: whether `Crisp.enableNotifications` was called for the website,
+     * - `notification_token`: the FCM token, registered on the session of each enabled website,
+     * - `notification_status_<sessionId>`: whether the user answered the prompt to enable notifications.
+     *
+     * Only the enabled websites are returned, with their [session][CrispNotificationSession], if any,
+     * loaded with the `tokenId` cached for it. Its FCM token is unregistered once the session is replaced,
+     * see [CrispNotificationPolicy][im.crisp.sdk.internal.notification.CrispNotificationPolicy].
+     *
+     * Read before [cleanUp], which deletes the sessions with a `tokenId` and the `tokenIds`.
+     */
+    fun notificationRecords(): Map<String, CrispNotificationRecord> {
+        val files = dataCacheDirectory.listFiles().orEmpty()
+        val token = files.firstOrNull { it.name == NOTIFICATION_TOKEN_FILE }?.readSerialized() as? String
+        return files.mapNotNull { file ->
+            val key = NOTIFICATION_ENABLED_FILE.websiteKey(file) ?: return@mapNotNull null
+            if (file.readSerialized() != true) return@mapNotNull null
+            val sessionId = File(dataCacheDirectory, "$SESSION_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
+                .takeIf { it.exists() }
+                ?.let { parseSessionId(it.readHead()) }
+            val session = sessionId?.let {
+                CrispNotificationSession(
+                    sessionId = it,
+                    tokenId = File(dataCacheDirectory, "$TOKEN_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
+                        .takeIf { file -> file.exists() }
+                        ?.readSerialized() as? String,
+                    notificationId = token,
+                    promptAnswered = File(dataCacheDirectory, "$NOTIFICATION_STATUS_PREFIX$it$ENTRY_KEY_SUFFIX")
+                        .takeIf { file -> file.exists() }
+                        ?.readBytes()
+                        ?.let(::isPromptAnswered) == true
+                )
+            }
+            key to CrispNotificationRecord(enabled = true, session = session)
+        }.toMap()
+    }
+
+    /** Deletes the notification settings of the pre-3.x SDK, once [migrated][notificationRecords]. */
+    fun removeNotifications() {
+        dataCacheDirectory.listFiles().orEmpty()
+            .filter { NOTIFICATION_FILE.matches(it.name) }
+            .forEach { file ->
+                if (!file.delete()) {
+                    log(Level.WARN, LOG_TAG, "Cannot delete the notification settings of the pre-3.x SDK: ${file.name}")
+                }
+            }
+    }
+
+    /**
+     * Reads a Java serialized [String] or [Boolean], the only values of the notification settings,
+     * `null` otherwise, see [SerializedValueInputStream].
+     */
+    private fun File.readSerialized(): Any? = try {
+        inputStream().use { SerializedValueInputStream(it).readObject() }
+    } catch (e: Exception) {
+        log(Level.WARN, LOG_TAG, "Cannot read the notification settings of the pre-3.x SDK: $name", e)
+        null
+    }
+
+    /**
+     * Only resolves [Boolean], rejecting any other class, so that nothing else is deserialized.
+     *
+     * [String] needs no class to be resolved: it is serialized as a `TC_STRING` (or `TC_LONGSTRING`) record,
+     * its text without class descriptor, which `readObject` reads without calling [resolveClass].
+     * That is only called for the records with a class descriptor
+     * (`TC_CLASSDESC`: objects, enums, arrays and classes), e.g. `Boolean`.
+     */
+    private class SerializedValueInputStream(input: InputStream) : ObjectInputStream(input) {
+        override fun resolveClass(desc: ObjectStreamClass): Class<*> =
+            if (desc.name == Boolean::class.javaObjectType.name) {
+                super.resolveClass(desc)
+            } else {
+                throw InvalidClassException(desc.name, "Unexpected class")
+            }
+    }
+
+    /**
+     * Deletes the files of the legacy pre-3.x SDK, in its `DiskLruCache` (see [CrispLegacyStorage]), except:
      * - the sessions that can be restored, not restored yet: those without `tokenId` cached for their website,
-     * - the notification entries (`notification_*`) to migrate them later.
+     * - the notification entries (`notification_*`), deleted once [migrated][notificationRecords] instead.
      *
      * So deletes:
      * - the other entries (e.g. `website`, `settings_*`, `messages_*`, `message_*`, `upload_*`, or `session`
@@ -195,6 +292,14 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
         private val TOKEN_FILE = Regex("^$TOKEN_ENTRY_PREFIX([a-z0-9_-]+)\\$ENTRY_KEY_SUFFIX$")
         // notification_enabled_<websiteId>, notification_status_<sessionId> and notification_token (2.x)
         private val NOTIFICATION_FILE = Regex("^notification_[a-z0-9_-]+\\$ENTRY_KEY_SUFFIX$")
+        private val NOTIFICATION_ENABLED_FILE = Regex("^notification_enabled_([a-z0-9_-]+)\\$ENTRY_KEY_SUFFIX$")
+        private const val NOTIFICATION_STATUS_PREFIX = "notification_status_"
+        private const val NOTIFICATION_TOKEN_FILE = "notification_token$ENTRY_KEY_SUFFIX"
+
+        // CrispNotificationClient.PermissionStatus, Java serialized as an enum: its constant name,
+        // after the class descriptor.
+        // REPLIED once the user answered the prompt, ASKED while shown, NONE otherwise
+        private val PROMPT_REPLIED = "REPLIED".toByteArray(Charsets.US_ASCII)
 
         private val isCleanedUp = AtomicBoolean(false)
         private val cleanUpScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -220,6 +325,12 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
                 ?: return null
             return String(bytes, start, end - start, Charsets.US_ASCII).takeIf(SESSION_ID::matches)
         }
+
+        /** Whether [bytes], a serialized `PermissionStatus`, tells that the user answered the prompt. */
+        internal fun isPromptAnswered(bytes: ByteArray): Boolean =
+            bytes.size >= STREAM_HEADER.size &&
+                STREAM_HEADER.indices.all { bytes[it] == STREAM_HEADER[it] } &&
+                bytes.indexOf(PROMPT_REPLIED) >= 0
 
         private fun ByteArray.indexOf(other: ByteArray): Int =
             (0..size - other.size).firstOrNull { start ->

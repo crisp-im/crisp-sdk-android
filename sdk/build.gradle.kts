@@ -75,6 +75,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.window)
     implementation(libs.material)
+    // Notifications, only if the app adds Firebase Cloud Messaging: not to force it on apps without notifications.
+    // Never referenced outside CrispFirebase and CrispNotificationService, checked to be available at runtime
+    compileOnly(libs.firebase.messaging)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.espresso.core)

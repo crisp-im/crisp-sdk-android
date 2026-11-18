@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Not translated, as a product name. Other SDK strings are generated from crisp-client (see CLAUDE.md) -->
+    <!-- Default name of the notification channels, see CrispNotificationDisplay -->
+    <string name="crisp_sdk_notification_channel_default_name" translatable="false">Crisp</string>
+</resources>

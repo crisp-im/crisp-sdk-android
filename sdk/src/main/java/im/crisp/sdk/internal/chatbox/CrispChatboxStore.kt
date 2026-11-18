@@ -18,30 +18,74 @@ import kotlinx.coroutines.launch
 internal class CrispChatboxStore(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 ) {
-    private val _state = MutableStateFlow<CrispChatboxState>(CrispChatboxState.Loading)
-    val state: StateFlow<CrispChatboxState> = _state.asStateFlow()
+    // region config
 
     // The config last requested, even if invalid or not loaded yet, which pending controller calls are made for
     private val _config = MutableStateFlow<CrispConfig?>(null)
     val config: StateFlow<CrispConfig?> = _config.asStateFlow()
 
+    internal fun onConfigLoaded(config: CrispConfig) {
+        _config.value = config
+    }
+
+    // endregion
+
+    // region internal events
+
     private val _events = Channel<CrispChatboxEvent>(Channel.BUFFERED)
     val events: Flow<CrispChatboxEvent> = _events.receiveAsFlow()
+
+    internal fun emitEvent(event: CrispChatboxEvent) {
+        scope.launch {
+            _events.send(event)
+        }
+    }
+
+    // endregion
+
+    // region public events
 
     // Unlike events, only delivered to current collectors (the attached controller), dropped otherwise
     private val _clientEvents = MutableSharedFlow<CrispClientEvent>(extraBufferCapacity = 64)
     val clientEvents: SharedFlow<CrispClientEvent> = _clientEvents.asSharedFlow()
 
-    // Called by CrispChatboxView
-    // Whether the socket of the page is connected, from the Web client logs
-    private val _isSocketConnected = MutableStateFlow(false)
-    val isSocketConnected: StateFlow<Boolean> = _isSocketConnected.asStateFlow()
+    /**
+     * Whether the page loads another session than the one of [config] for a moment,
+     * e.g. to unregister its notifications: its events are not forwarded to the controller,
+     * as they are not of the chatbox session.
+     */
+    internal var isHandingOver = false
 
-    internal fun onConfigLoaded(config: CrispConfig) {
-        _config.value = config
+    internal fun emitClientEvent(event: CrispClientEvent) {
+        if (isHandingOver) return
+        _clientEvents.tryEmit(event)
     }
 
-    // Run instead of becoming ready when the page is, see holdNextReady
+    // endregion
+
+    // region state
+
+    private val _state = MutableStateFlow<CrispChatboxState>(CrispChatboxState.Loading)
+    val state: StateFlow<CrispChatboxState> = _state.asStateFlow()
+
+    /**
+     * Whether the page is ready (its [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY] interface lifecycle event),
+     * even while held not ready (see [holdNextReady]), until another page starts.
+     *
+     * The Web client only emits it once its session is joined
+     * (`triggerSessionLoaded`, from the `session:state` the servers send once joined),
+     * unless its socket is disabled (static mode),
+     * so it tells that the session is joined while [isSocketConnected].
+     * Not emitted again when the socket reconnects, joining it again.
+     */
+    private val _isPageReady = MutableStateFlow(false)
+    val isPageReady: StateFlow<Boolean> = _isPageReady.asStateFlow()
+
+    /**
+     * Run instead of becoming ready when the page is.
+     *
+     * @see [holdNextReady]
+     */
     private var onPageReady: (() -> Unit)? = null
 
     /**
@@ -52,14 +96,26 @@ internal class CrispChatboxStore(
         onPageReady = action
     }
 
+    // Called by CrispChatboxView
+    // Whether the socket of the page is connected, from the Web client logs
+    private val _isSocketConnected = MutableStateFlow(false)
+    val isSocketConnected: StateFlow<Boolean> = _isSocketConnected.asStateFlow()
+
+    internal fun onSocketStateChanged(isConnected: Boolean) {
+        _isSocketConnected.value = isConnected
+    }
+
     // Called by WebViewClient / WebChromeClient / Bridge
     internal fun onPageStarted() {
         onPageReady = null
+        isHandingOver = false
         _isSocketConnected.value = false
+        _isPageReady.value = false
         _state.value = CrispChatboxState.Loading
     }
 
     internal fun onPageFinished() {
+        _isPageReady.value = true
         onPageReady?.let {
             onPageReady = null
             it()
@@ -69,21 +125,9 @@ internal class CrispChatboxStore(
         emitClientEvent(CrispClientEvent.Loaded)
     }
 
-    internal fun onSocketStateChanged(isConnected: Boolean) {
-        _isSocketConnected.value = isConnected
-    }
-
-    internal fun emitClientEvent(event: CrispClientEvent) {
-        _clientEvents.tryEmit(event)
-    }
-
     internal fun onError(error: Throwable) {
         _state.value = CrispChatboxState.Error(error)
     }
 
-    internal fun emitEvent(event: CrispChatboxEvent) {
-        scope.launch {
-            _events.send(event)
-        }
-    }
+    // endregion
 }

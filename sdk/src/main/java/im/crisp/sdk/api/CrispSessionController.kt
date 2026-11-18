@@ -7,6 +7,8 @@ import im.crisp.sdk.internal.chatbox.CrispSessionCall
 import im.crisp.sdk.internal.chatbox.CrispControllerDispatcher
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
+import im.crisp.sdk.internal.notification.CrispNotificationPolicy
+import im.crisp.sdk.internal.notification.CrispNotificationStore
 import im.crisp.sdk.model.Company
 import im.crisp.sdk.model.SessionEventColor
 
@@ -41,12 +43,13 @@ import im.crisp.sdk.model.SessionEventColor
  */
 class CrispSessionController internal constructor(
     private val dispatcher: CrispControllerDispatcher,
-    private val config: CrispConfig
+    private val config: CrispConfig,
+    private val notifications: CrispNotificationStore? = null
 ) {
     constructor(
         context: Context,
         config: CrispConfig
-    ) : this(CrispControllerDispatcher.get(context), config)
+    ) : this(CrispControllerDispatcher.get(context), config, CrispNotificationStore.get(context))
 
     val session: Session = Session()
     val user: User = User()
@@ -106,9 +109,13 @@ class CrispSessionController internal constructor(
          *
          * Done right away if a chatbox is ready with it, reloading it.
          * Otherwise, done when the next chatbox loading it is, before it becomes ready.
+         *
+         * Its [notifications][CrispNotifications] stop being shown or opening the chatbox right away.
          */
         fun reset() {
             if (!warnIfWebsiteMissing("session.reset")) {
+                // First, not to show a notification of the session meanwhile
+                notifications?.update(config.websiteId) { CrispNotificationPolicy.revoke(it, config.tokenId) }
                 dispatcher.reset(config.session)
             }
         }

@@ -18,6 +18,9 @@ lifecycleProcess = "2.9.4"
 coroutines = "1.10.2"
 serialization = "1.9.0"
 dokka = "2.2.0"
+# Compile-only in sdk: the lowest version notifications support, apps provide theirs (BoM 34.18.0+).
+# 25.1.0 added the registration with the Firebase installation ID (FID), fixed up to 25.1.2
+firebaseMessaging = "25.1.2"
 jreleaser = "1.27.0"
 
 [libraries]
@@ -45,6 +48,7 @@ androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-p
 androidx-window = { group = "androidx.window", name = "window", version.ref = "window" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 [plugins]
