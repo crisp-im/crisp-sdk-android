@@ -108,7 +108,8 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
      * - `notification_status_<sessionId>`: whether the user answered the prompt to enable notifications.
      *
      * Only the enabled websites are returned, with their [session][CrispNotificationSession], if any,
-     * loaded with the `tokenId` cached for it. Its FCM token is unregistered once the session is replaced,
+     * loaded with the `tokenId` cached for it. Its FCM token stays registered while it is still the token of the
+     * device, and is only unregistered if it changed (e.g. replaced by the FID) or once the session is replaced,
      * see [CrispNotificationPolicy][im.crisp.sdk.internal.notification.CrispNotificationPolicy].
      *
      * Read before [cleanUp], which deletes the sessions with a `tokenId` and the `tokenIds`.

@@ -23,7 +23,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /**
- * Dispatches the calls of [CrispSessionController][im.crisp.sdk.api.CrispSessionController] to their session:
+ * Dispatches the calls of [CrispSessionController][im.crisp.sdk.api.controller.CrispSessionController] to their session:
  * right away to a chatbox ready with it, or else once one is, before it becomes ready.
  *
  * Persisted until dispatched, so that they survive the chatbox being closed or the app being killed.

@@ -1,6 +1,6 @@
 package im.crisp.sdk.internal.notification
 
-import im.crisp.sdk.api.CrispNotificationListener
+import im.crisp.sdk.api.notification.CrispNotificationListener
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

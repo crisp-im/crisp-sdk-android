@@ -17,6 +17,8 @@ Android SDK that wraps the Crisp chatbox Web widget in a WebView.
 Public (what developers see):
 - `ui`: embeddable Compose / View / Fragment components.
 - `api`: methods developers interact with (e.g. `Crisp`).
+  - `controller`: `CrispSessionController`, and in `chatbox`, `CrispChatboxController` with its callbacks.
+  - `notification`: push notifications (e.g. `CrispNotifications`), documented in its package section of `sdk/Module.md`.
 - `model`: Crisp models used by `api`.
 
 Private:
@@ -25,7 +27,7 @@ Private:
   - `views`: native views used alongside the WebView for state (loading and error).
   - `upload`: file upload feature.
   - `permission`: permission feature.
-  - `notification`: push notifications (FCM), whose public API is `api.CrispNotifications`. `firebase-messaging` is `compileOnly`: only reference its classes from `CrispFirebase` (and `api.CrispNotificationService`), after `CrispFirebase.isAvailable`. Safety rules in `CrispNotificationPolicy`: never load a session from a notification `session_id`, and unregister an FCM token from the session it was registered on (the servers only unregister from the socket session, without acknowledging).
+  - `notification`: push notifications (FCM), whose public API is `api.notification.CrispNotifications`. `firebase-messaging` is `compileOnly`: only reference its classes from `CrispFirebase` (and `api.notification.CrispNotificationService`), after `CrispFirebase.isAvailable`. Safety rules in `CrispNotificationPolicy`: never load a session from a notification `session_id`, and unregister an FCM token from the session it was registered on (the servers only unregister from the socket session, without acknowledging).
   - `chatbox`: state management and events. Also restores once the sessions of the native SDK (1.0.15 to 2.x, `CrispLegacyStorage`), as described in `sdk/Module.md`, and deletes its other files, once its `notification_*` cache entries are migrated (`notification.CrispNotificationStore`).
   - `environment`: everything else (extensions, locales, logging, shared code).
 

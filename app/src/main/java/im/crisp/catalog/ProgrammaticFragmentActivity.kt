@@ -10,9 +10,9 @@ import im.crisp.catalog.controller.showChatboxControllerDialog
 import im.crisp.catalog.controller.showSessionControllerDialog
 import im.crisp.catalog.events.ToastEventCallbacks
 import im.crisp.catalog.settings.ChatboxPreferences
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
-import im.crisp.sdk.api.CrispEventCallbacks
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 import im.crisp.sdk.ui.CrispFragment
 import im.crisp.sdk.ui.EdgeToEdge
 

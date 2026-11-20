@@ -2,7 +2,7 @@ package im.crisp.sdk.internal.notification
 
 import android.os.Handler
 import android.os.Looper
-import im.crisp.sdk.api.CrispNotificationListener
+import im.crisp.sdk.api.notification.CrispNotificationListener
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executor
 

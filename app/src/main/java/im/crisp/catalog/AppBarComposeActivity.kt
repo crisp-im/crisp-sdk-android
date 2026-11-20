@@ -18,7 +18,7 @@ import im.crisp.catalog.controller.WithControllerFabs
 import im.crisp.catalog.events.rememberEventToaster
 import im.crisp.catalog.settings.rememberChatboxConfig
 import im.crisp.catalog.ui.theme.CatalogTheme
-import im.crisp.sdk.api.CrispEventCallbacks
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 import im.crisp.sdk.ui.CrispChatbox
 import im.crisp.sdk.ui.rememberCrispChatboxController
 import im.crisp.sdk.ui.EdgeToEdge

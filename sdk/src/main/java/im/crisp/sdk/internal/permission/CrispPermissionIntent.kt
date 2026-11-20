@@ -44,7 +44,7 @@ internal enum class CrispPermissionIntent(
     /**
      * Notifications, from the prompt in the chat (Android 13+).
      *
-     * @see [CrispNotificationSync.promptIfNeeded][im.crisp.sdk.internal.notification.CrispNotificationSync.promptIfNeeded]
+     * @see im.crisp.sdk.internal.notification.CrispNotificationSync.promptIfNeeded
      *
      * TODO: dedicated `sdk.alert_permission_notification_title` and `_message` strings, once added to crisp-client
      */

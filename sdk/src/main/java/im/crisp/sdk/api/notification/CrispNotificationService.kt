@@ -1,4 +1,4 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.notification
 
 import androidx.core.app.TaskStackBuilder
 
@@ -12,7 +12,7 @@ import com.google.firebase.messaging.RemoteMessage
  * as it needs `com.google.firebase:firebase-messaging` in your app:
  * ```xml
  * <service
- *     android:name="im.crisp.sdk.api.CrispNotificationService"
+ *     android:name="im.crisp.sdk.api.notification.CrispNotificationService"
  *     android:exported="false">
  *     <intent-filter>
  *         <action android:name="com.google.firebase.MESSAGING_EVENT" />
@@ -55,7 +55,7 @@ open class CrispNotificationService : FirebaseMessagingService() {
     }
 
     /**
-     * The notification of the FCM message [data] (`RemoteMessage.getData()`) was shown, see
+     * The notification of the FCM message [data][RemoteMessage.getData] was shown, see
      * [CrispNotifications.handleNotification]. Does nothing by default: override it to react, e.g. to update a badge.
      *
      * Called on the background thread of [onMessageReceived], unlike the [listeners][CrispNotifications.addListener],

@@ -27,7 +27,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import im.crisp.catalog.R
 import im.crisp.catalog.ui.theme.CatalogTheme
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import kotlinx.coroutines.CoroutineScope
 
 // region Compose

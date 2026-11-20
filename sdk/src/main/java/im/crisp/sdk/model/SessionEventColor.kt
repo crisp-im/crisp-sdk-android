@@ -5,7 +5,7 @@ package im.crisp.sdk.model
  */
 /**
  * The color of a session event
- * @see im.crisp.sdk.api.CrispSessionController.Session.pushEvent
+ * @see im.crisp.sdk.api.controller.CrispSessionController.Session.pushEvent
  */
 enum class SessionEventColor {
     RED,

@@ -19,7 +19,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import im.crisp.sdk.R
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.api.Presentation
 import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
@@ -67,7 +67,7 @@ import kotlin.math.roundToInt
  * }
  * ```
  *
- * @see im.crisp.sdk.api.CrispChatboxController
+ * @see im.crisp.sdk.api.controller.chatbox.CrispChatboxController
  */
 class CrispBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private var chatboxView: CrispChatboxView? = null

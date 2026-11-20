@@ -2,7 +2,7 @@ package im.crisp.sdk.internal.chatbox
 
 import im.crisp.sdk.model.Message
 
-/** Web client events forwarded to the attached controller, see [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks]. */
+/** Web client events forwarded to the attached controller, see [CrispEventCallbacks][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks]. */
 internal sealed interface CrispClientEvent {
     data object Loaded : CrispClientEvent
     data class MessageSent(val message: Message): CrispClientEvent

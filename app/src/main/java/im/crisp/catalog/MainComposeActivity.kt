@@ -53,7 +53,7 @@ import im.crisp.catalog.events.rememberEventToaster
 import im.crisp.catalog.settings.rememberChatboxConfig
 import im.crisp.catalog.ui.theme.CatalogTheme
 import im.crisp.sdk.api.Crisp
-import im.crisp.sdk.api.CrispEventCallbacks
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 import im.crisp.sdk.ui.CrispBottomSheetModal
 import im.crisp.sdk.ui.CrispChat
 import im.crisp.sdk.ui.CrispChatbox

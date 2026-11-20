@@ -37,7 +37,7 @@ internal data class CrispNotificationSession(
     /** The FID or legacy FCM token registered on this session, until unregistered. */
     val notificationId: String? = null,
     /**
-     * Whether this session was reset through [CrispSessionController][im.crisp.sdk.api.CrispSessionController]
+     * Whether this session was reset through [CrispSessionController][im.crisp.sdk.api.controller.CrispSessionController]
      * (e.g. on logout) while no chatbox was ready with it.
      *
      * Its notifications are not shown, nor do they open the chatbox,

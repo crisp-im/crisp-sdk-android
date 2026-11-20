@@ -17,7 +17,7 @@ import kotlin.coroutines.resume
  *
  * `firebase-messaging` is compile-only. The app adds it and sets Firebase up to receive notifications.
  * So its classes may be missing at runtime. They are only referenced here
- * (and by [CrispNotificationService][im.crisp.sdk.api.CrispNotificationService], which the app only declares with it),
+ * (and by [CrispNotificationService][im.crisp.sdk.api.notification.CrispNotificationService], which the app only declares with it),
  * once [isAvailable] checked them.
  *
  * The device is identified by an FCM registration token, or, if the app enables it,

@@ -2,8 +2,8 @@ package im.crisp.sdk.model
 
 /**
  * The company of the user
- * @see im.crisp.sdk.api.CrispSessionController.User.setCompany
- * @see im.crisp.sdk.api.CrispChatboxController.User.getCompany
+ * @see im.crisp.sdk.api.controller.CrispSessionController.User.setCompany
+ * @see im.crisp.sdk.api.controller.chatbox.CrispChatboxController.User.getCompany
  */
 data class Company @JvmOverloads constructor(
     val name: String,

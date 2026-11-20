@@ -1,3 +1,4 @@
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jreleaser.model.Active
 import org.jreleaser.model.Http
 import org.jreleaser.model.api.deploy.maven.MavenCentralMavenDeployer
@@ -97,6 +98,9 @@ dokka {
     }
     dokkaSourceSets.configureEach {
         includes.from("Module.md")
+        // Also the protected members meant to be overridden (e.g. of `CrispNotificationService`),
+        // those only overridden from Android being hidden with `@suppress`
+        documentedVisibilities(VisibilityModifier.Public, VisibilityModifier.Protected)
         // Only documents the public API (`api`, `model` and `ui`)
         perPackageOption {
             matchingRegex.set("""im\.crisp\.sdk\.internal(\..*)?""")
@@ -113,6 +117,42 @@ dokka {
             remoteUrl("https://github.com/crisp-im/crisp-sdk-android/tree/beta/sdk/src/main/java")
             remoteLineSuffix.set("#L")
         }
+    }
+}
+
+// Dokka titles every package page "Package-level declarations", which no option changes: titled here instead.
+// A package missing from it keeps its name as title, with a warning
+val packageTitles = mapOf(
+    "im.crisp.sdk.api" to "API",
+    "im.crisp.sdk.api.controller" to "Crisp controllers",
+    "im.crisp.sdk.api.controller.chatbox" to "Crisp Chatbox controller",
+    "im.crisp.sdk.api.notification" to "Notifications",
+    "im.crisp.sdk.model" to "Models",
+    "im.crisp.sdk.ui" to "UI components",
+)
+tasks.dokkaGeneratePublicationHtml {
+    val outputDir = outputDirectory
+    val titles = packageTitles
+    inputs.property("packageTitles", titles)
+    doLast {
+        val heading = Regex("""<h1 class="cover">(?:\s*<span><span>[^<]*</span></span>)+\s*</h1>""")
+        val pageTitle = Regex("""<title>([^<]+)</title>""")
+        outputDir.get().asFile.walk()
+            .filter { it.name == "index.html" }
+            .forEach { page ->
+                val html = page.readText()
+                if ("""data-page-type="package"""" !in html) return@forEach
+                val packageName = pageTitle.find(html)?.groupValues?.get(1)
+                val match = heading.find(html)
+                if (packageName == null || match == null || "Package-level" !in match.value) {
+                    logger.warn("Cannot rename the package page heading of ${page.parentFile.name}, its markup changed")
+                    return@forEach
+                }
+                val title = titles[packageName] ?: packageName.also {
+                    logger.warn("No title for package $it in packageTitles of sdk/build.gradle.kts")
+                }
+                page.writeText(html.replaceRange(match.range, """<h1 class="cover"><span><span>$title</span></span></h1>"""))
+            }
     }
 }
 

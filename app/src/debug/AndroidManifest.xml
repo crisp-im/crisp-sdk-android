@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug builds only: drives the catalog from adb for the automated notification tests.
+             Exported for adb (shell) only, not to be shipped. -->
+        <receiver
+            android:name="im.crisp.catalog.debug.DebugCommandReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

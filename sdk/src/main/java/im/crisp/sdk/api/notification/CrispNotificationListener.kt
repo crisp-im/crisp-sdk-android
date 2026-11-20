@@ -1,4 +1,6 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.notification
+
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 
 /**
  * Notified of the Crisp notifications shown, once registered with [CrispNotifications.addListener].
@@ -18,6 +20,10 @@ package im.crisp.sdk.api
  *     }
  * }
  * ```
+ *
+ * If you declare your own service extending [CrispNotificationService], its
+ * [onNotificationShown][CrispNotificationService.onNotificationShown] is also called for each notification shown,
+ * on the background thread of the service, e.g. to update a badge.
  *
  * Replaces `EventsCallback.onNotificationReceived` of SDK 2.x, with the same data.
  */

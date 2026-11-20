@@ -1,9 +1,10 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.notification
 
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.TaskStackBuilder
 import com.google.firebase.messaging.RemoteMessage
+import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.notification.CrispNotificationDisplay
@@ -14,39 +15,19 @@ import im.crisp.sdk.internal.notification.CrispNotificationStore
 
 /**
  * Notifies the user of the replies of your operators, with Firebase Cloud Messaging (FCM).
+ * See the [im.crisp.sdk.api.notification] package to set them up.
  *
- * Notifications are sent to the device of the session a chatbox last loaded for each website.
- * Opted-in per website with [setEnabled], as they need you to:
- * 1. Set up Firebase in your app, adding `com.google.firebase:firebase-messaging` (25.1.2 or later,
- *    BoM 34.18.0 or later), which the SDK does not add for you not to force it on apps without notifications.
- *    The device is registered with its FCM registration token, or with its Firebase installation ID (FID) if your
- *    app enables it (`firebase_messaging_installation_id_enabled` meta-data), whichever FCM allows.
- * 2. Set up your Firebase project in your Crisp Dashboard: `Settings > Chatbox Settings > Push Notifications`.
- * 3. Declare `android.permission.POST_NOTIFICATIONS` as from Android 13,
- *    the chatbox prompts the user to allow notifications once they sent a message.
- * 4. Pass the notifications to the SDK, either:
- *    - declaring [CrispNotificationService] in your `AndroidManifest.xml`, if Crisp is your only use of FCM,
- *    - or, from your own `FirebaseMessagingService`, passing them to [handleNotification] when
- *      [isCrispNotification], and the identifier of the device to [onRegistered] (installation ID) or
- *      [onNewToken] (token).
- * 5. Nothing more: tapping one opens the chatbox in a modal bottom sheet, above your launcher `Activity`.
- *    To show the chatbox component of your choice instead, pass `opensChatbox = false`, see [configFrom].
+ * - [setEnabled] opts a website in, [isEnabled] tells whether it is.
+ * - From your own `FirebaseMessagingService` ([CrispNotificationService] does it otherwise):
+ *   [isCrispNotification] and [handleNotification] show the Crisp notifications,
+ *   [onNewToken] and [onRegistered] pass the identifier of the device.
+ * - [configFrom] gives the chatbox of a notification tapped, to show it yourself
+ *   with `opensChatbox = false`, and [isCrispIntent] tells whether an `Intent` comes from one.
+ * - [addListener] and [removeListener] notify you of the notifications shown.
  *
- * To know when one is shown, e.g. for analytics, register a [CrispNotificationListener] with [addListener].
- *
- * ## Sessions
- *
- * The FCM token of the device is registered on the session of the chatbox once it loads,
- * so notifications are only sent once a chatbox of the website was shown.
- * It is unregistered from it once another session is loaded for the website
- * (e.g. with another `tokenId`, loading the previous session again for a moment first),
- * or once the session is reset.
- * A session [reset][CrispSessionController.Session.reset] while no chatbox is shown (e.g. on logout)
- * stops showing its notifications right away, and is unregistered on the next load of the website.
- *
- * Only the notifications of the last session loaded for a website are shown,
- * not to show those of another user of the device,
- * so the conversations of a user are not shown to another one.
+ * Only the notifications of the last session loaded for a website are shown and opened,
+ * so that the conversations of a user are never shown to another one using the device,
+ * see the package for which session is notified.
  */
 object CrispNotifications {
     private const val LOG_TAG = "CrispNotifications"
@@ -71,7 +52,10 @@ object CrispNotifications {
         CrispNotificationStore.get(context).update(websiteId) { it.copy(enabled = enabled) }
     }
 
-    /** Whether notifications are enabled for [websiteId], see [setEnabled]. */
+    /**
+     * Whether notifications are enabled for [websiteId].
+     * @see [setEnabled].
+     */
     @JvmStatic
     fun isEnabled(context: Context, websiteId: String): Boolean =
         CrispNotificationStore.get(context).record(websiteId).enabled
@@ -133,7 +117,9 @@ object CrispNotifications {
      * if notifications are disabled for its website or not allowed by the user,
      * or if its session is not the last one loaded by a chatbox of its website (or was reset since).
      *
-     * Once shown, the [listeners][addListener] are notified.
+     * Once shown, the [listeners][addListener] are notified. When called by [CrispNotificationService],
+     * or your own service extending it, its [onNotificationShown][CrispNotificationService.onNotificationShown]
+     * is also called, once this returns `true`.
      */
     @JvmStatic
     @JvmOverloads
@@ -149,11 +135,18 @@ object CrispNotifications {
             return false
         }
         val record = CrispNotificationStore.get(context).record(payload.websiteId)
+        log(
+            Level.DEBUG,
+            LOG_TAG,
+            "Notification received for session …${payload.sessionId.takeLast(6)}, " +
+                "recorded …${record.session?.sessionId?.takeLast(6)}, revoked ${record.session?.revoked}",
+        )
         if (CrispNotificationPolicy.activeSession(record, payload.sessionId) == null) {
             log(Level.WARN, LOG_TAG, "Notification not shown: its session is not the current one of its website")
             return false
         }
         if (!CrispNotificationDisplay.show(context.applicationContext, payload, backStack, opensChatbox)) return false
+        log(Level.DEBUG, LOG_TAG, "Notification shown")
         CrispNotificationListeners.instance.notifyShown(data)
         return true
     }
@@ -176,6 +169,8 @@ object CrispNotifications {
      * Registers [listener][CrispNotificationListener] to be notified of the notifications shown,
      * on the main thread.
      * Register it from `Application.onCreate`, not to miss the notifications received in background.
+     * In your own service extending [CrispNotificationService], you can also override
+     * [onNotificationShown][CrispNotificationService.onNotificationShown], called on its background thread.
      *
      * Does nothing if already registered.
      */
@@ -194,7 +189,10 @@ object CrispNotifications {
 
     // region Opening
 
-    /** Whether [intent] was started by tapping a Crisp notification, see [configFrom]. */
+    /**
+     * Whether [intent] was started by tapping a Crisp notification.
+     * @see [configFrom].
+     */
     @JvmStatic
     fun isCrispIntent(intent: Intent): Boolean = CrispNotificationPayload.fromIntent(intent) != null
 

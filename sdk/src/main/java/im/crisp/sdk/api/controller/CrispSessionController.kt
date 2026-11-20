@@ -1,6 +1,10 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller
 
 import android.content.Context
+import im.crisp.sdk.api.CrispConfig
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
+import im.crisp.sdk.api.notification.CrispNotifications
 import im.crisp.sdk.internal.bridge.types.sessionValuesToJson
 import im.crisp.sdk.internal.bridge.types.toBridge
 import im.crisp.sdk.internal.chatbox.CrispSessionCall

@@ -22,7 +22,7 @@ import androidx.lifecycle.coroutineScope
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import im.crisp.sdk.R
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.api.Presentation
 import im.crisp.sdk.internal.bridge.CrispClientBridge
@@ -135,8 +135,8 @@ class CrispChatboxView @JvmOverloads constructor(
      * The default one is closed when replaced or when this view is destroyed, a replacing one is
      * left to its owner.
      *
-     * Replacing it does not notify [onChatOpened][im.crisp.sdk.api.CrispEventCallbacks.onChatOpened]
-     * or [onChatClosed][im.crisp.sdk.api.CrispEventCallbacks.onChatClosed], as the chat stays shown:
+     * Replacing it does not notify [onChatOpened][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks.onChatOpened]
+     * or [onChatClosed][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks.onChatClosed], as the chat stays shown:
      * the next ones are notified to the replacing one.
      */
     var controller: CrispChatboxController = CrispChatboxController()
@@ -254,6 +254,7 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun isStarted(): Boolean =
         observedLifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
 
+    /** @suppress */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         (context.findActivity() as? androidx.activity.ComponentActivity)?.let { activity ->
@@ -268,6 +269,7 @@ class CrispChatboxView @JvmOverloads constructor(
         startSocketLifecycle()
     }
 
+    /** @suppress */
     override fun onDetachedFromWindow() {
         // Still attached until super is called
         updateChatOpened(isAttached = false)

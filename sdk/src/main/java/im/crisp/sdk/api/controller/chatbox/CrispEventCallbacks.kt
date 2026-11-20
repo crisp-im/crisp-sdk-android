@@ -1,4 +1,4 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller.chatbox
 
 import im.crisp.sdk.model.Message
 
@@ -144,9 +144,9 @@ interface CrispEventCallbacks {
 }
 
 /**
- * Creates [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks] invoking the given lambdas, the `null` ones being ignored.
+ * Creates [CrispEventCallbacks][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks] invoking the given lambdas, the `null` ones being ignored.
  *
- * Java can implement [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks] instead.
+ * Java can implement [CrispEventCallbacks][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks] instead.
  */
 @JvmSynthetic
 fun CrispEventCallbacks(

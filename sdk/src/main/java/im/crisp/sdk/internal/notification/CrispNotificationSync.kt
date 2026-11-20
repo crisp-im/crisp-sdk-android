@@ -3,6 +3,7 @@ package im.crisp.sdk.internal.notification
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
@@ -12,6 +13,7 @@ import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.PickerClickEvent
 import im.crisp.sdk.internal.bridge.types.ConversationMessageContent
 import im.crisp.sdk.internal.bridge.types.GenericMessage
+import im.crisp.sdk.internal.bridge.types.LocalMessage
 import im.crisp.sdk.internal.bridge.types.LocalMessageFingerprint
 import im.crisp.sdk.internal.bridge.types.Message
 import im.crisp.sdk.internal.bridge.types.MessageFingerprint
@@ -25,6 +27,7 @@ import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.permission.CrispPermissionIntent
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -105,6 +108,12 @@ internal class CrispNotificationSync(
     suspend fun onPageLoaded(config: CrispConfig, bridge: CrispClientBridge, timeout: Duration) {
         val sessionId = awaitJoined(bridge)
         val record = store.record(config.websiteId)
+        log(
+            Level.DEBUG,
+            LOG_TAG,
+            "Session ${sessionId.short()} joined: enabled ${record.enabled}, " +
+                "recorded ${record.session?.sessionId?.short()}, registered ${record.session?.notificationId?.short()}",
+        )
         // Nothing to do for a website that never used notifications,
         // without fetching the FID or FCM token
         if (!record.enabled && record.session?.notificationId == null) return
@@ -132,9 +141,18 @@ internal class CrispNotificationSync(
             deviceToken,
         )
         store.update(config.websiteId) { plan.record }
+        log(
+            Level.DEBUG,
+            LOG_TAG,
+            "Plan for session ${sessionId.short()}: unregister ${plan.unregister?.short()}, " +
+                "register ${plan.register?.short()}, unreachable ${plan.unreachable?.sessionId?.short()}",
+        )
         plan.unreachable?.let { logUnreachable() }
         plan.unregister?.let { unregister(bridge, sessionId, it) }
-        plan.register?.let { register(bridge, sessionId, it) }
+        plan.register?.let {
+            warnIfNoMessagingService()
+            register(bridge, sessionId, it)
+        }
         promptIfNeeded(config, bridge, sessionId)
     }
 
@@ -274,12 +292,36 @@ internal class CrispNotificationSync(
             }
             return
         }
-        val messages = bridge.getMessages()
+        var messages = bridge.getMessages()
         if (messages.any { it.fingerprint == LocalMessageFingerprint.Remote(PROMPT_FINGERPRINT) }) return
         if (messages.none { it.from == MessageSender.USER }) return
-        // TODO: what is this `IDENTITY_PROMPT_FINGERPRINT`? What means `isStandalone` and why emphase text if true?
+        // The identity prompt of the Web client starts with the same "reply" header as a standalone prompt,
+        // so it is only added without it. Shown a moment after the message sent, so it is waited for
+        if (messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT }) {
+            messages = awaitIdentityPrompt(bridge)
+            // Allowed or prompted meanwhile
+            if (isPermissionGranted()) return
+            if (messages.any { it.fingerprint == LocalMessageFingerprint.Remote(PROMPT_FINGERPRINT) }) return
+        }
         val isStandalone = messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT }
+        log(Level.DEBUG, LOG_TAG, "Prompting to enable notifications on session ${sessionId.short()}, standalone $isStandalone")
         bridge.injectMessage(promptMessage(isStandalone))
+    }
+
+    /**
+     * The messages once the identity prompt of the Web client is shown, or after [IDENTITY_PROMPT_DELAY] if not
+     * (e.g. disabled, or the user email or phone is known).
+     */
+    private suspend fun awaitIdentityPrompt(bridge: CrispClientBridge): List<LocalMessage> {
+        log(Level.DEBUG, LOG_TAG, "Waiting up to $IDENTITY_PROMPT_DELAY for the identity prompt of the Web client")
+        return withTimeoutOrNull(IDENTITY_PROMPT_DELAY) {
+            var messages: List<LocalMessage>
+            do {
+                delay(IDENTITY_PROMPT_POLLING)
+                messages = bridge.getMessages()
+            } while (messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT })
+            messages
+        } ?: bridge.getMessages()
     }
 
     /**
@@ -298,6 +340,7 @@ internal class CrispNotificationSync(
     ) {
         if (event.fingerprint != PROMPT_FINGERPRINT) return
         val loaded = awaitLoaded(bridge)
+        log(Level.DEBUG, LOG_TAG, "Prompt answered on session ${loaded.short()}: ${event.choiceValue}")
         store.update(config.websiteId) { record ->
             val session = record.session?.takeIf { it.sessionId == loaded } ?: return@update record
             record.copy(session = session.copy(promptAnswered = true))
@@ -317,6 +360,39 @@ internal class CrispNotificationSync(
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
 
+    /**
+     * Logs once if no `FirebaseMessagingService` is declared in the app `AndroidManifest.xml`,
+     * neither [CrispNotificationService][im.crisp.sdk.api.notification.CrispNotificationService] nor one of the app,
+     * so that the notifications are dropped.
+     * Only the base `FirebaseMessagingService` of `firebase-messaging` is then declared,
+     * which ignores data messages.
+     *
+     * A service of the app that does not pass them to
+     * [CrispNotifications.handleNotification][im.crisp.sdk.api.notification.CrispNotifications.handleNotification]
+     * cannot be detected.
+     */
+    private fun warnIfNoMessagingService() {
+        if (isNoServiceChecked.getAndSet(true)) return
+        val services = try {
+            // ResolveInfoFlags only from Android 13
+            context.packageManager.queryIntentServices(
+                Intent(MESSAGING_EVENT).setPackage(context.packageName),
+                0,
+            )
+        } catch (e: RuntimeException) {
+            return
+        }
+        if (services.none { it.serviceInfo?.name != FIREBASE_MESSAGING_SERVICE }) {
+            log(
+                Level.ERROR,
+                LOG_TAG,
+                "Notifications are not shown: no FirebaseMessagingService receives them. " +
+                    "Declare im.crisp.sdk.api.notification.CrispNotificationService in AndroidManifest.xml, " +
+                    "or pass them to CrispNotifications.handleNotification from your own FirebaseMessagingService",
+            )
+        }
+    }
+
     @SuppressLint("InlinedApi") // Only checked from Android 13, see promptIfNeeded
     private fun isPermissionDeclared(): Boolean = try {
         @Suppress("DEPRECATION")
@@ -332,7 +408,7 @@ internal class CrispNotificationSync(
         val text = if (isStandalone) {
             "**${context.getString(R.string.crisp_sdk_prompt_notification_reply)}**\n_${ask}_"
         } else {
-            ask
+            "_${ask}_"
         }
         return Message(
             generic = GenericMessage(
@@ -386,7 +462,11 @@ internal class CrispNotificationSync(
         spaceUpdate(sessionId)
         try {
             bridge.registerNotification(notificationId)
-            log(Level.INFO, LOG_TAG, "FID or FCM token registered on the session")
+            log(
+                Level.INFO,
+                LOG_TAG,
+                "FID or FCM token ${notificationId.short()} registered on session ${sessionId.short()}",
+            )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             log(Level.WARN, LOG_TAG, "Cannot register the FID or FCM token", e)
@@ -397,7 +477,11 @@ internal class CrispNotificationSync(
         spaceUpdate(sessionId)
         try {
             bridge.unregisterNotification(notificationId)
-            log(Level.INFO, LOG_TAG, "FID or FCM token unregistered from the session")
+            log(
+                Level.INFO,
+                LOG_TAG,
+                "FID or FCM token ${notificationId.short()} unregistered from session ${sessionId.short()}",
+            )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             log(Level.WARN, LOG_TAG, "Cannot unregister the FID or FCM token", e)
@@ -422,9 +506,34 @@ internal class CrispNotificationSync(
         /** Of the identity prompt of the Web client, after which the prompt is not standalone. */
         private val IDENTITY_PROMPT_FINGERPRINT = LocalMessageFingerprint.Local("\$identity")
 
+        /**
+         * How long the identity prompt of the Web client is waited for after a message sent.
+         *
+         * `crisp-client` shows it 5s after the first message sent by a user without email nor phone
+         * (`ui = 5e3` in `checkUserIdentity`, called by `handleSent`, in `chat-alert-*.js`),
+         * if `email_visitors` or `phone_visitors` is set, right away if `force_identify` is,
+         * or later while a bot is typing. Plus a margin for the dispatch: check it on each `crisp-client` update.
+         */
+        private val IDENTITY_PROMPT_DELAY = 6.seconds
+
+        /** Between two checks of the messages for the identity prompt of the Web client. */
+        private val IDENTITY_PROMPT_POLLING = 500.milliseconds
+
         private const val CHOICE_ENABLE = "enable"
         private const val CHOICE_SKIP = "skip"
 
         private val isUndeclaredLogged = AtomicBoolean(false)
+
+        // Checked once per process, see warnIfNoMessagingService
+        private val isNoServiceChecked = AtomicBoolean(false)
+
+        /** The action of the FCM messages, received by a `FirebaseMessagingService`. */
+        private const val MESSAGING_EVENT = "com.google.firebase.MESSAGING_EVENT"
+
+        /** The base service declared by `firebase-messaging`, which ignores data messages. */
+        private const val FIREBASE_MESSAGING_SERVICE = "com.google.firebase.messaging.FirebaseMessagingService"
+
+        /** The end of a session ID or token, to tell them apart in the logs without logging them. */
+        private fun String.short(): String = "…" + takeLast(6)
     }
 }

@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
-import im.crisp.sdk.api.CrispNotifications
+import im.crisp.sdk.api.notification.CrispNotifications
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.ui.CrispBottomSheetDialogFragment

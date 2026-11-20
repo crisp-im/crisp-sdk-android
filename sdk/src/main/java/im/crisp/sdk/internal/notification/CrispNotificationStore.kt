@@ -82,7 +82,7 @@ internal class CrispNotificationStore(
 
     /**
      * Migrates the settings of the pre-3.x SDK, once: those of a website with a record already are kept, e.g. set
-     * by [CrispNotifications.setEnabled][im.crisp.sdk.api.CrispNotifications.setEnabled] before.
+     * by [CrispNotifications.setEnabled][im.crisp.sdk.api.notification.CrispNotifications.setEnabled] before.
      */
     private fun migrateLegacyOnce() {
         if (preferences.getBoolean(LEGACY_MIGRATED_KEY, false)) return
