@@ -20,7 +20,8 @@ import com.google.firebase.messaging.RemoteMessage
  * </service>
  * ```
  *
- * Tapping a notification opens the chatbox in a modal bottom sheet, above your launcher `Activity`.
+ * Tapping a notification opens the chatbox in a modal bottom sheet, above the current screen of your app
+ * (or its launcher `Activity` if not running).
  * Extend it to show the chatbox component of your choice instead (see [CrispNotifications.configFrom]),
  * or another back stack:
  * ```
@@ -31,15 +32,23 @@ import com.google.firebase.messaging.RemoteMessage
  *
  * Otherwise, from your own `FirebaseMessagingService`, call [CrispNotifications.handleNotification],
  * [CrispNotifications.onRegistered] and [CrispNotifications.onNewToken] as this one does.
+ *
+ * Declare it in the default process of your app (without `android:process`), as the chatbox.
+ * The notification settings it reads are thread-safe, but not shared between processes.
  */
 open class CrispNotificationService : FirebaseMessagingService() {
     /**
-     * Whether tapping a notification opens the chatbox in a modal bottom sheet, above your launcher `Activity`
-     * (by default), or only your launcher `Activity`, to show the chatbox with [CrispNotifications.configFrom].
+     * Whether tapping a notification opens the chatbox in a modal bottom sheet (by default),
+     * or only [backStack] (by default, your launcher `Activity`), to show the chatbox with
+     * [CrispNotifications.configFrom].
      */
     protected open val opensChatbox: Boolean = true
 
-    /** The back stack opened when a notification is tapped, by default your launcher `Activity`. */
+    /**
+     * The back stack opened when a notification is tapped, below the chatbox if [opensChatbox].
+     * By default, the current screen of your app, or its launcher `Activity` if not running,
+     * see [CrispNotifications.handleNotification].
+     */
     protected open fun backStack(): TaskStackBuilder? = null
 
     /**

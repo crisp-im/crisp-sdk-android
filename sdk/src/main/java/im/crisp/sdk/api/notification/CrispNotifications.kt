@@ -39,7 +39,7 @@ object CrispNotifications {
      *
      * Can be called at any time, e.g. once the user opts-in, or from `Application.onCreate`.
      * The token is registered on (or unregistered from) the session of the next chatbox loading [websiteId].
-     * Disabling them stops showing them right away.
+     * Disabling them stops showing them right away, and removes the one shown.
      *
      * The notification settings of SDK 2.x (`Crisp.enableNotifications`) are migrated.
      */
@@ -104,17 +104,21 @@ object CrispNotifications {
      * from `FirebaseMessagingService.onMessageReceived` of your own service.
      * [CrispNotificationService] calls it.
      *
-     * When tapped, it opens [backStack] (by default, the launcher `Activity` of your app),
-     * then the chatbox above it, in a modal bottom sheet.
+     * When tapped, it opens the chatbox in a modal bottom sheet, above the current screen of your app,
+     * or above its launcher `Activity` if your app is not running.
+     * With [backStack], it opens it instead (replacing the task of your app, as a `TaskStackBuilder` does),
+     * then the chatbox above it, e.g. to open the screen of your app where the chatbox is.
      *
-     * Without [opensChatbox], it only opens [backStack], whose last `Intent` has the
-     * extras of the notification, to show the chatbox component of your choice with [configFrom].
+     * Without [opensChatbox], it only opens [backStack] (by default, the launcher `Activity` of your app),
+     * whose last `Intent` has the extras of the notification,
+     * to show the chatbox component of your choice with [configFrom].
      *
      * Without back stack (an empty [backStack], and no launcher `Activity`), tapping it only dismisses it: the
      * chatbox is never opened alone, which would close the screens of your app.
      *
      * Not shown (returning `false`) if it is not a Crisp notification,
-     * if notifications are disabled for its website or not allowed by the user,
+     * if notifications are disabled for its website, not allowed by the user,
+     * or turned off for its website (its notification channel, from Android 8),
      * or if its session is not the last one loaded by a chatbox of its website (or was reset since).
      *
      * Once shown, the [listeners][addListener] are notified. When called by [CrispNotificationService],

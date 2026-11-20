@@ -97,6 +97,50 @@ Both outputs are generated: don't edit them by hand, change the templates in `.m
 
 To list the available tasks: `mise tasks`.
 
+## Testing
+
+### Unit tests
+
+```sh
+./gradlew :sdk:testDebugUnitTest
+```
+
+Run on the JVM, with [Robolectric](https://robolectric.org) for the Android components (e.g. the notifications shown, and the `Activity` opened by tapping them).
+
+### Instrumented tests
+
+```sh
+./gradlew :sdk:connectedDebugAndroidTest
+# on a single device, or a single class
+ANDROID_SERIAL=emulator-5554 ./gradlew :sdk:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=im.crisp.sdk.internal.notification.CrispNotificationTapTest
+```
+
+Run on all the connected devices and emulators. `CrispNotificationTapTest` taps the notifications in the shade, checking where the chatbox opens and where going back leads, for each kind of launcher `Activity` (standard, `singleTask`, `singleInstance`, own `taskAffinity`). Its "Don't keep activities" tests are skipped before Android 10.
+
+Running them on a single (recent) emulator is enough day to day. Run them on several Android versions (e.g. the minSdk and the latest) before a release, or once the opening of the notifications changed (`CrispNotificationActivity`, `CrispNotificationDisplay`).
+
+### Notifications with a killed process
+
+Not automated, as killing the process of the app also kills the tests running in it. To check before a release, or once the opening of the notifications changed: most users tap notifications once Android killed the process of the app in the background, its task kept in the recents.
+
+1. Install `app` (notifications enabled in `CatalogApplication`), open a chatbox once so that the device is registered on its session, then open another screen of the app and press Home.
+2. Kill its process, keeping its task, as Android does to free memory (not `am force-stop`, which also removes its notifications and stops FCM until the app is opened again):
+   ```sh
+   adb shell am kill im.crisp.catalog
+   adb shell pidof im.crisp.catalog                              # prints nothing
+   adb shell dumpsys activity recents | grep im.crisp.catalog    # its task is kept
+   ```
+3. Send a message from the Crisp inbox, then tap the notification. Also try killing the process once the notification is shown, before tapping it, so that the tap starts the process.
+4. The screen of the app is restored, with the chatbox above it. Going back closes the chatbox, then goes back to the previous screens of the app.
+
+If not:
+
+```sh
+adb shell dumpsys activity activities | grep -E "Task\{|Hist" | grep -A5 im.crisp.catalog
+adb logcat -s CrispNotifications
+```
+
 ## Publishing to Maven Central
 
 The SDK is published as `im.crisp:crisp-sdk` (AAR, public API sources and documentation jars), signed with an in-memory ASCII-armored GPG key. The version is `jreleaserVersion` (with `-SNAPSHOT` if `jreleaserSnapshot` is `true`) in `gradle.properties`.

@@ -29,8 +29,6 @@ import im.crisp.sdk.internal.permission.CrispPermissionManager
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -50,9 +48,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * - once rate-limited (10 per 3 minutes per session and per IP).
  *
  * They are not acknowledged, nor are their updates of the session atomic, so:
- * - a page is kept a moment after unregistering ([UNREGISTER_GRACE]),
- *   for it to be sent before being replaced,
- * - two updates of the same session are spaced ([SAME_SESSION_SPACING]), not to lose one,
+ * - two updates of the same session are spaced, not to lose one (see [CrispNotificationSpacing]),
+ * - a page can be replaced right after unregistering: the call returns once the Web client emitted it,
+ *   which was enough in the tests on devices,
  * - tokens are registered again on each load, as it is idempotent.
  */
 internal class CrispNotificationSync(
@@ -66,6 +64,7 @@ internal class CrispNotificationSync(
     },
     // The FID or FCM token of the device
     private val fetchToken: suspend () -> String? = { CrispFirebase.fetchToken(context) },
+    private val spacing: CrispNotificationSpacing = CrispNotificationSpacing.instance,
 ) {
     // region Session joined
 
@@ -122,14 +121,16 @@ internal class CrispNotificationSync(
             val fetched = withTimeoutOrNull(timeout) { Result.success(fetchToken()) }
             if (fetched == null) log(Level.WARN, LOG_TAG, "Timed out fetching the FCM token")
             val token = (fetched?.getOrNull() ?: store.deviceToken)?.also { store.deviceToken = it }
-            if (token == null) {
+            if (token == null && record.session?.sessionId == sessionId) {
                 // Unknown rather than not allowed.
-                // The registered one (e.g. migrated from the pre-3.x SDK) is kept,
+                // The one registered on this session (e.g. migrated from the pre-3.x SDK) is kept,
                 // not to stop notifications on a failed fetch, and updated on the next load
                 log(Level.WARN, LOG_TAG, "Cannot get the FCM token, the session keeps the one registered, if any")
                 promptIfNeeded(config, bridge, sessionId)
                 return
             }
+            // Another session is joined: recorded without token, the previous one being unreachable
+            if (token == null) log(Level.WARN, LOG_TAG, "Cannot get the FCM token, not registered on the session")
             token
         } else {
             null
@@ -173,10 +174,7 @@ internal class CrispNotificationSync(
         store.update(config.websiteId) { record ->
             CrispNotificationPolicy.onBeforeReset(record, sessionId).also { notificationId = it.second }.first
         }
-        notificationId?.let {
-            unregister(bridge, sessionId, it)
-            delay(UNREGISTER_GRACE)
-        }
+        notificationId?.let { unregister(bridge, sessionId, it) }
     }
 
     // endregion
@@ -234,13 +232,7 @@ internal class CrispNotificationSync(
         store.update(config.websiteId) { record ->
             CrispNotificationPolicy.onHandoverLoaded(record, previous, sessionId).also { token = it.second }.first
         }
-        val unregistered = token
-        if (unregistered != null) {
-            unregister(bridge, sessionId, unregistered)
-            delay(UNREGISTER_GRACE)
-        } else {
-            logUnreachable()
-        }
+        token?.let { unregister(bridge, sessionId, it) } ?: logUnreachable()
         return true
     }
 
@@ -443,23 +435,8 @@ internal class CrispNotificationSync(
 
     // region Calls
 
-    // The session last updated, and when, to space the next update of the same session
-    private var lastUpdate: Pair<String, TimeMark>? = null
-
-    /**
-     * Waits for [SAME_SESSION_SPACING] since the last update of [sessionId], if any,
-     * then records this one.
-     */
-    private suspend fun spaceUpdate(sessionId: String) {
-        lastUpdate?.takeIf { it.first == sessionId }?.let { (_, mark) ->
-            val remaining = SAME_SESSION_SPACING - mark.elapsedNow()
-            if (remaining.isPositive()) delay(remaining)
-        }
-        lastUpdate = sessionId to TimeSource.Monotonic.markNow()
-    }
-
     private suspend fun register(bridge: CrispClientBridge, sessionId: String, notificationId: String) {
-        spaceUpdate(sessionId)
+        spacing.await(sessionId)
         try {
             bridge.registerNotification(notificationId)
             log(
@@ -474,7 +451,7 @@ internal class CrispNotificationSync(
     }
 
     private suspend fun unregister(bridge: CrispClientBridge, sessionId: String, notificationId: String) {
-        spaceUpdate(sessionId)
+        spacing.await(sessionId)
         try {
             bridge.unregisterNotification(notificationId)
             log(
@@ -492,13 +469,6 @@ internal class CrispNotificationSync(
 
     companion object {
         private const val LOG_TAG = "CrispNotifications"
-
-        // TODO: why these timings, and specifically these values?
-        /** How long a page is kept after unregistering, for the event to be sent before the page is replaced. */
-        val UNREGISTER_GRACE = 1.seconds
-
-        /** Between two updates of the tokens of the same session, which the servers do not make atomically. */
-        val SAME_SESSION_SPACING = 2.seconds
 
         /** Of the injected prompt, the same as on iOS. */
         val PROMPT_FINGERPRINT = MessageFingerprint(-10006)

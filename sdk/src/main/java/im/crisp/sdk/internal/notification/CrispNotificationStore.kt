@@ -17,12 +17,18 @@ import java.util.Locale
  * Websites are keyed lowercased, as the pre-3.x SDK did, to migrate its settings.
  *
  * The settings of the pre-3.x SDK are migrated once, before the first read, see [CrispLegacyStorage.notificationRecords].
+ *
+ * Once the session of a website is no longer active (see [CrispNotificationPolicy.activeSession]),
+ * e.g. reset, revoked, replaced or disabled, its notification shown is removed ([onInactive]),
+ * not to leave the last message of a user on the device once logged out.
  */
 internal class CrispNotificationStore(
     private val preferences: SharedPreferences,
     // The settings of the pre-3.x SDK, read once to migrate them, then removed
     private val legacy: () -> Map<String, CrispNotificationRecord> = { emptyMap() },
     private val removeLegacy: () -> Unit = {},
+    // Removes the notification shown for a website, once its session is no longer active
+    private val onInactive: (websiteId: String) -> Unit = {},
 ) {
     // region Records
 
@@ -51,6 +57,10 @@ internal class CrispNotificationStore(
         val record = transform(previous)
         if (record != previous) {
             write(recordKey(websiteId), record)
+            val active = previous.session?.let { CrispNotificationPolicy.activeSession(previous, it.sessionId) }
+            if (active != null && CrispNotificationPolicy.activeSession(record, active.sessionId) == null) {
+                onInactive(websiteId)
+            }
         }
         return record
     }
@@ -126,11 +136,13 @@ internal class CrispNotificationStore(
 
         fun get(context: Context): CrispNotificationStore = instance ?: synchronized(this) {
             instance ?: run {
-                val legacyStorage = CrispLegacyStorage.from(context.applicationContext)
+                val appContext = context.applicationContext
+                val legacyStorage = CrispLegacyStorage.from(appContext)
                 CrispNotificationStore(
-                    context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE),
+                    appContext.getSharedPreferences(NAME, Context.MODE_PRIVATE),
                     legacy = legacyStorage::notificationRecords,
                     removeLegacy = legacyStorage::removeNotifications,
+                    onInactive = { CrispNotificationDisplay.cancel(appContext, it) },
                 )
             }.also { instance = it }
         }

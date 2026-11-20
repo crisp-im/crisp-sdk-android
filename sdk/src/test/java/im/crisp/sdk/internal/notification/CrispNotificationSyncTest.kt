@@ -51,14 +51,18 @@ class CrispNotificationSyncTest {
         },
         JSEventBus(),
     )
-    private val sync = CrispNotificationSync(
+    // Not the process-wide one, not to space the calls of a test from those of the previous one
+    private val spacing = CrispNotificationSpacing()
+    private fun sync() = CrispNotificationSync(
         context,
         chatboxStore,
         CrispPermissionManager(context),
         store,
         canShow = { canShow },
         fetchToken = { fetches++; delay(fetchDuration); fcmToken },
+        spacing = spacing,
     )
+    private val sync = sync()
 
     private val config = CrispConfig("website", "user_a")
     private val registered = CrispNotificationSession("session_a", "user_a", notificationId = "fcm_1")
@@ -111,7 +115,7 @@ class CrispNotificationSyncTest {
         sync.onPageLoaded(config, bridge, timeout)
 
         assertEquals(listOf("unregisterNotification:fcm_1", "registerNotification:fcm_2"), calls.map { it.first })
-        assertTrue(calls[1].second - calls[0].second >= CrispNotificationSync.SAME_SESSION_SPACING.inWholeMilliseconds - 1)
+        assertTrue(calls[1].second - calls[0].second >= CrispNotificationSpacing.SAME_SESSION_SPACING.inWholeMilliseconds - 1)
     }
 
     @Test fun `the token is unregistered once notifications cannot be shown`() = test {
@@ -148,6 +152,19 @@ class CrispNotificationSyncTest {
 
         assertTrue(calls.isEmpty())
         assertEquals(record, store.record("website"))
+    }
+
+    @Test fun `another session joined without token is recorded without it, the previous one being unreachable`() = test {
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
+        fcmToken = null
+        joined("session_b")
+
+        sync.onPageLoaded(config, bridge, timeout)
+
+        // Cannot be unregistered from session_a while session_b is joined
+        assertTrue(calls.isEmpty())
+        assertEquals(CrispNotificationSession("session_b", "user_a"), store.record("website").session)
+        assertNull(CrispNotificationPolicy.activeSession(store.record("website"), "session_a"))
     }
 
     @Test fun `the saved token is used if it cannot be fetched`() = test {
@@ -199,14 +216,14 @@ class CrispNotificationSyncTest {
 
     // region beforeReset
 
-    @Test fun `the token is unregistered before resetting, then the page is kept a moment`() = test {
+    @Test fun `the token is unregistered before resetting, without waiting`() = test {
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
         joined()
 
         sync.beforeReset(config, bridge, 5.seconds)
 
         assertEquals(listOf("unregisterNotification:fcm_1"), calls.map { it.first })
-        assertTrue(currentTime >= CrispNotificationSync.UNREGISTER_GRACE.inWholeMilliseconds)
+        assertEquals(0L, currentTime)
         assertNull(store.record("website").session)
     }
 
@@ -218,7 +235,22 @@ class CrispNotificationSyncTest {
         sync.beforeReset(config, bridge, 5.seconds)
 
         assertEquals(listOf("registerNotification:fcm_1", "unregisterNotification:fcm_1"), calls.map { it.first })
-        assertTrue(calls[1].second - calls[0].second >= CrispNotificationSync.SAME_SESSION_SPACING.inWholeMilliseconds - 1)
+        assertTrue(calls[1].second - calls[0].second >= CrispNotificationSpacing.SAME_SESSION_SPACING.inWholeMilliseconds - 1)
+    }
+
+    @Test fun `the updates of a session by two chatboxes at once are spaced`() = test {
+        store.update("website") { it.copy(enabled = true) }
+        joined()
+        // E.g. an embedded chatbox and the sheet of a notification tapped
+        val other = sync()
+
+        val first = launch { sync.onPageLoaded(config, bridge, timeout) }
+        val second = launch { other.onPageLoaded(config, bridge, timeout) }
+        first.join()
+        second.join()
+
+        assertEquals(listOf("registerNotification:fcm_1", "registerNotification:fcm_1"), calls.map { it.first })
+        assertTrue(calls[1].second - calls[0].second >= CrispNotificationSpacing.SAME_SESSION_SPACING.inWholeMilliseconds - 1)
     }
 
     @Test fun `the session is reset without unregistering if not joined in time`() = test {

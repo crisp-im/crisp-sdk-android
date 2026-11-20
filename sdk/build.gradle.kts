@@ -52,8 +52,16 @@ android {
         }
     }
     testOptions {
+        // The instrumented tests (e.g. tapping notifications) run as the app does
+        targetSdk = 37
         // Android methods (e.g. android.util.Log) return default values instead of throwing
         unitTests.isReturnDefaultValues = true
+        // Robolectric tests (e.g. notifications) read the SDK resources
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // Robolectric sets up Android 16+ shared memory through JDK internals, closed by default
+            it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+        }
     }
     publishing {
         // Not `withSourcesJar()`, which would disclose `internal` sources: see `publicSourcesJar`
@@ -72,18 +80,25 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.webkit)
+    implementation(libs.androidx.window)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.window)
     implementation(libs.material)
     // Notifications, only if the app adds Firebase Cloud Messaging: not to force it on apps without notifications.
     // Never referenced outside CrispFirebase and CrispNotificationService, checked to be available at runtime
     compileOnly(libs.firebase.messaging)
+    debugImplementation(libs.androidx.ui.tooling)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Tests of Android components (notifications, activities) on the JVM, see `@RunWith(AndroidJUnit4::class)`
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.ui.tooling)
+    androidTestImplementation(libs.androidx.test.runner)
+    // Taps the notifications in the shade, see CrispNotificationTapTest
+    androidTestImplementation(libs.androidx.uiautomator)
 }
 
 // Documentation

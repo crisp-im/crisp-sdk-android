@@ -84,4 +84,36 @@ class CrispNotificationStoreTest {
 
         assertEquals("fcm", store().deviceToken)
     }
+
+    @Test fun `the notification shown is removed once its session is no longer active`() {
+        legacy = emptyMap()
+        val inactive = mutableListOf<String>()
+        val store = CrispNotificationStore(preferences, onInactive = { inactive += it })
+        store.update("website") { CrispNotificationRecord(enabled = true, session = session) }
+        // Still active: a new token on the same session
+        store.update("website") { it.copy(session = session.copy(notificationId = "fcm_2")) }
+        assertTrue(inactive.isEmpty())
+
+        store.update("website") { CrispNotificationPolicy.revoke(it, tokenId = null) }
+        // Already inactive
+        store.update("website") { it.copy(enabled = false) }
+
+        assertEquals(listOf("website"), inactive)
+    }
+
+    @Test fun `the notification shown is removed once disabled, reset or replaced`() {
+        legacy = emptyMap()
+        val inactive = mutableListOf<String>()
+        val store = CrispNotificationStore(preferences, onInactive = { inactive += it })
+        val active = CrispNotificationRecord(enabled = true, session = session)
+
+        store.update("website") { active }
+        store.update("website") { it.copy(enabled = false) }
+        store.update("website") { active }
+        store.update("website") { CrispNotificationPolicy.onBeforeReset(it, "session_a").first }
+        store.update("website") { active }
+        store.update("website") { CrispNotificationPolicy.onSessionLoaded(it, "session_b", null, null).record }
+
+        assertEquals(listOf("website", "website", "website"), inactive)
+    }
 }

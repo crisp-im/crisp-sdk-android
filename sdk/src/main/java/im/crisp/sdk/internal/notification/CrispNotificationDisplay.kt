@@ -85,6 +85,8 @@ internal object CrispNotificationDisplay {
     private const val CHANNEL_ID_PREFIX = "crisp_chatbox_"
     private const val FIREBASE_DEFAULT_ICON = "com.google.firebase.messaging.default_notification_icon"
     private const val FIREBASE_DEFAULT_COLOR = "com.google.firebase.messaging.default_notification_color"
+    private const val LIGHTS_ON_MS = 500
+    private const val LIGHTS_OFF_MS = 2000
     private const val CHANNEL_NAME_PREFIX = "im.crisp.sdk.notification.channel."
     private const val CHANNEL_NAME_DEFAULT = "${CHANNEL_NAME_PREFIX}default"
     private const val ELLIPSIS = "[…]"
@@ -92,9 +94,13 @@ internal object CrispNotificationDisplay {
     /** Whether the user lets the app show notifications (the `POST_NOTIFICATIONS` permission from Android 13). */
     fun areEnabled(context: Context): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
+    /** Removes the notification shown for [websiteId], if any, see [CrispNotificationStore]. */
+    fun cancel(context: Context, websiteId: String) {
+        NotificationManagerCompat.from(context).cancel(websiteId, NOTIFICATION_ID)
+    }
+
     /**
-     * Shows [payload], opening [backStack] (the launcher `Activity` of the app by default) with its extras when
-     * tapped, then the chatbox in its own `Activity` if [opensChatbox].
+     * Shows [payload], opening the chatbox when tapped if [opensChatbox], see [pendingIntent].
      *
      * Returns whether it is shown.
      */
@@ -111,27 +117,33 @@ internal object CrispNotificationDisplay {
         }
         val channelId = createChannel(context, payload.websiteId)
         val manager = NotificationManagerCompat.from(context)
+        // Turned off by the user for this website: Android would drop it silently.
+        // Before Android 8, no channel
+        if (manager.getNotificationChannelCompat(channelId)?.importance == NotificationManagerCompat.IMPORTANCE_NONE) {
+            log(Level.WARN, LOG_TAG, "Notification not shown: its channel is turned off by the user")
+            return false
+        }
         val hasActive = manager.activeNotifications.any { it.tag == payload.websiteId }
         val body = if (hasActive) "$ELLIPSIS\n${payload.body.orEmpty()}" else payload.body
+        val color = metaColor(context)
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(metaIcon(context))
+            .setColor(color)
             .setContentTitle(payload.title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setWhen(System.currentTimeMillis())
-            .setShowWhen(true)
             .setAutoCancel(true)
             .setCategory(Notification.CATEGORY_MESSAGE)
+            .setContentIntent(pendingIntent(context, payload, backStack, opensChatbox))
             // Hides the message on the lock screen
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setContentIntent(pendingIntent(context, payload, backStack, opensChatbox))
-            // Before Android 8, no channel
+            // Before Android 8, no channel, so set on each notification.
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(Notification.DEFAULT_ALL)
-            .apply {
-                setColor(metaColor(context))
-                setSound(soundUri(context))
-            }
+            .setSound(soundUri(context))
+            // The default timings of Android (AOSP), not readable as internal, which devices rarely change
+            .setLights(color, LIGHTS_ON_MS, LIGHTS_OFF_MS)
+            // Not DEFAULT_SOUND nor DEFAULT_LIGHTS: Android would use its defaults instead of these, whatever the order
+            .setDefaults(Notification.DEFAULT_VIBRATE)
             .build()
         manager.notify(payload.websiteId, NOTIFICATION_ID, notification)
         return true
@@ -160,57 +172,77 @@ internal object CrispNotificationDisplay {
             .setShowBadge(false)
             .setVibrationEnabled(true)
             .setLightsEnabled(true)
-            .apply {
-                setLightColor(metaColor(context))
-                setSound(
-                    soundUri(context),
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
-                )
-            }
+            .setLightColor(metaColor(context))
+            .setSound(soundUri(context), AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
             .build()
         manager.createNotificationChannel(channel)
         return channelId
     }
 
+    /**
+     * What tapping the notification of [payload] opens:
+     * - by default, the chatbox above the current screen of the app, in [CrispNotificationActivity], which opens the
+     *   launcher `Activity` below if the app is not running,
+     * - with [backStack] from the app, its `Activity` stack (replacing the task of the app), then the chatbox above it,
+     * - without [opensChatbox], [backStack] or the launcher `Activity`, its last `Intent` getting the extras of the
+     *   notification, for the app to show the chatbox.
+     *
+     * Never the chatbox alone: it would leave its translucent sheet over the home screen.
+     * So not tappable (`null`) for an app without launcher `Activity` nor [backStack].
+     */
     private fun pendingIntent(
         context: Context,
         payload: CrispNotificationPayload,
         backStack: TaskStackBuilder?,
         opensChatbox: Boolean,
     ): PendingIntent? {
-        // Never the chatbox alone. Started as the root of a new task,
-        // it would clear the one of the app (as a task stack does),
-        // leaving its translucent sheet over the home screen. So not tappable without back stack
-        val builder = backStack?.takeIf { it.intentCount > 0 } ?: defaultBackStack(context)
-        if (builder == null) {
+        // One per website, not to replace the extras of the notification of another website
+        val requestCode = payload.websiteId.hashCode()
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        // A copy, not to add to the one of the app, which may pass the same one for each notification
+        val appBackStack = backStack?.takeIf { it.intentCount > 0 }?.copy(context)
+        val launchIntent = launchIntent(context)
+        if (appBackStack == null && launchIntent == null) {
             log(Level.WARN, LOG_TAG, "The app has no launcher Activity to open when the notification is tapped")
             return null
         }
         if (opensChatbox) {
-            builder.addNextIntent(
-                CrispNotificationPayload.addExtras(
-                    Intent(context, CrispNotificationActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-                    payload.websiteId,
-                    payload.sessionId,
-                )
+            val chatbox = CrispNotificationPayload.addExtras(
+                Intent(context, CrispNotificationActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                payload.websiteId,
+                payload.sessionId,
             )
-        } else {
-            builder.editIntentAt(builder.intentCount - 1)?.let {
-                CrispNotificationPayload.addExtras(it, payload.websiteId, payload.sessionId)
+            if (appBackStack == null) {
+                // In the task of the app, brought to the front as is, or a new one
+                return PendingIntent.getActivity(
+                    context,
+                    requestCode,
+                    chatbox.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    flags,
+                )
             }
+            return appBackStack.addNextIntent(chatbox).getPendingIntent(requestCode, flags)
         }
-        // One per website, not to replace the extras of the notification of another website
-        return builder.getPendingIntent(
-            payload.websiteId.hashCode(),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val builder = appBackStack
+            ?: launchIntent?.let { TaskStackBuilder.create(context).addNextIntent(it) }
+            ?: return null
+        builder.editIntentAt(builder.intentCount - 1)?.let {
+            CrispNotificationPayload.addExtras(it, payload.websiteId, payload.sessionId)
+        }
+        return builder.getPendingIntent(requestCode, flags)
     }
 
-    private fun defaultBackStack(context: Context): TaskStackBuilder? {
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
-        return TaskStackBuilder.create(context).addNextIntent(launchIntent)
-    }
+    private fun TaskStackBuilder.copy(context: Context): TaskStackBuilder =
+        TaskStackBuilder.create(context).also { copy ->
+            for (index in 0 until intentCount) {
+                editIntentAt(index)?.let { copy.addNextIntent(Intent(it)) }
+            }
+        }
+
+    /** The launcher `Activity` of the app, if any. */
+    fun launchIntent(context: Context): Intent? =
+        context.packageManager.getLaunchIntentForPackage(context.packageName)
 
     @DrawableRes
     private fun metaIcon(context: Context): Int =

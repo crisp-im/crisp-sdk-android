@@ -114,7 +114,8 @@ class CrispSessionController internal constructor(
          * Done right away if a chatbox is ready with it, reloading it.
          * Otherwise, done when the next chatbox loading it is, before it becomes ready.
          *
-         * Its [notifications][CrispNotifications] stop being shown or opening the chatbox right away.
+         * Its [notifications][CrispNotifications] stop being shown or opening the chatbox right away,
+         * and the one shown is removed.
          */
         fun reset() {
             if (!warnIfWebsiteMissing("session.reset")) {

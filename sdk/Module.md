@@ -227,7 +227,7 @@ fun Support(user: User) {
 
 ### Notifications from SDK 2.x
 
-`Crisp.enableNotifications` becomes [CrispNotifications.setEnabled][im.crisp.sdk.api.notification.CrispNotifications.setEnabled], which takes the website, and can be called at any time. `CrispNotificationClient` methods move to [CrispNotifications][im.crisp.sdk.api.notification.CrispNotifications], and `CrispNotificationService` to `im.crisp.sdk.api`, so update its declaration in your `AndroidManifest.xml`.
+`Crisp.enableNotifications` becomes [CrispNotifications.setEnabled][im.crisp.sdk.api.notification.CrispNotifications.setEnabled], which takes the website, and can be called at any time. `CrispNotificationClient` methods move to [CrispNotifications][im.crisp.sdk.api.notification.CrispNotifications], and `CrispNotificationService` to `im.crisp.sdk.api.notification`, so update its declaration in your `AndroidManifest.xml`.
 
 As there is no `ChatActivity` anymore, `CrispNotificationClient.openChatbox` becomes [configFrom][im.crisp.sdk.api.notification.CrispNotifications.configFrom], to show your chatbox component with.
 
@@ -315,7 +315,7 @@ The chatbox notifies the user of the replies of your operators with [Firebase Cl
           </service>
       </application>
       ```
-      That's it: tapping a notification opens the chatbox in a modal bottom sheet, above your launcher `Activity`.\
+      That's it: tapping a notification opens the chatbox in a modal bottom sheet, above the current screen of your app, or its launcher `Activity` if it is not running.\
       On Android 13 and later, the chatbox asks the user to allow notifications once they sent a message.
    2. Otherwise, pass them from your own `FirebaseMessagingService`, declared the same way instead:
       ```kotlin
