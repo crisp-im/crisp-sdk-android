@@ -61,6 +61,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -575,6 +576,19 @@ class CrispChatboxView @JvmOverloads constructor(
         removeCallbacks(webViewCreation)
     }
 
+    /**
+     * Hides the page from accessibility services (e.g. TalkBack) unless ready,
+     * while the loading or error views cover it. Android does not hide the views covered by others,
+     * so they would still read it, e.g. the previous session loaded during a handover (see [loadHandover]).
+     */
+    private fun updateWebViewAccessibility(webView: CrispWebView? = this.webView) {
+        webView?.importantForAccessibility = if (store.state.value is CrispChatboxState.Ready) {
+            IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        } else {
+            IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+    }
+
     // Null when the device has no WebView provider, creating one would crash (see CrispWebViewSupport)
     private fun createWebView(): CrispWebView? = try {
         CrispWebView(context).apply {
@@ -592,6 +606,7 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun addWebView(webView: CrispWebView) {
         // Below the native views
         addView(webView, 0)
+        updateWebViewAccessibility(webView)
         ViewCompat.requestApplyInsets(this)
         webView.clientBridge?.let {
             controllerDispatcher.attach(
@@ -664,7 +679,8 @@ class CrispChatboxView @JvmOverloads constructor(
     private val sessions: CrispSessions by lazy { CrispSessions.from(context) }
     private val legacyStorage: CrispLegacyStorage by lazy {
         CrispLegacyStorage.from(context).also {
-            // Its notification settings first, which need the sessions and tokenIds it deletes
+            // Its notification settings first, which need the sessions and tokenIds it deletes,
+            // then their files, once migrated
             it.cleanUpOnce { CrispNotificationStore.get(context).migrateLegacy() }
         }
     }
@@ -980,8 +996,12 @@ class CrispChatboxView @JvmOverloads constructor(
         notificationJob = scope.launch {
             try {
                 notificationSync.onPageLoaded(config, bridge, loadingTimeout)
-                store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
-                    notificationSync.promptIfNeeded(config, bridge, notificationSync.awaitJoined(bridge))
+                // Scoped, so that their exceptions are caught below
+                coroutineScope {
+                    launch { notificationSync.followDeviceToken(config, bridge) }
+                    store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
+                        notificationSync.promptIfNeeded(config, bridge, notificationSync.awaitJoined(bridge))
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -1012,6 +1032,7 @@ class CrispChatboxView @JvmOverloads constructor(
                 // Launch state collection
                 launch {
                     store.state.collect { state ->
+                        updateWebViewAccessibility()
                         loadingView.fadeVisible(state is CrispChatboxState.Loading)
                         val isError = state is CrispChatboxState.Error
                         val isWebsiteMissing =

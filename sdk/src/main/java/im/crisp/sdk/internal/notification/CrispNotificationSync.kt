@@ -32,6 +32,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
@@ -124,9 +125,10 @@ internal class CrispNotificationSync(
             if (token == null && record.session?.sessionId == sessionId) {
                 // Unknown rather than not allowed.
                 // The one registered on this session (e.g. migrated from the pre-3.x SDK) is kept,
-                // not to stop notifications on a failed fetch, and updated on the next load
+                // not to stop notifications on a failed fetch,
+                // and updated on the next load or once received (see followDeviceToken).
+                // No prompt: notifications are allowed (canShow)
                 log(Level.WARN, LOG_TAG, "Cannot get the FCM token, the session keeps the one registered, if any")
-                promptIfNeeded(config, bridge, sessionId)
                 return
             }
             // Another session is joined: recorded without token, the previous one being unreachable
@@ -135,6 +137,41 @@ internal class CrispNotificationSync(
         } else {
             null
         }
+        applyPlan(config, bridge, sessionId, deviceToken)
+        promptIfNeeded(config, bridge, sessionId)
+    }
+
+    /**
+     * Once the page of [config][CrispConfig] is [loaded][onPageLoaded],
+     * registers the FID or FCM token of the device on its session each time it changes
+     * (received by `onRegistered` or `onNewToken`), replacing the one registered,
+     * rather than on the next load, not to lose the notifications sent meanwhile.
+     *
+     * Runs as long as the page. Only for the recorded session of the page,
+     * if notifications can be shown and it is not revoked
+     * (unregistered once reset, see [CrispNotificationPolicy.onSessionLoaded]).
+     */
+    suspend fun followDeviceToken(config: CrispConfig, bridge: CrispClientBridge) {
+        store.deviceTokens.filterNotNull().collect { token ->
+            val sessionId = awaitJoined(bridge)
+            val record = store.record(config.websiteId)
+            val session = record.session?.takeIf { it.sessionId == sessionId } ?: return@collect
+            if (!record.enabled || session.revoked || session.notificationId == token || !canShow()) return@collect
+            log(Level.DEBUG, LOG_TAG, "FID or FCM token changed to ${token.short()} on session ${sessionId.short()}")
+            applyPlan(config, bridge, sessionId, token)
+        }
+    }
+
+    /**
+     * Unregisters or registers [deviceToken] on the joined [sessionId],
+     * @see [CrispNotificationPolicy.onSessionLoaded].
+     */
+    private suspend fun applyPlan(
+        config: CrispConfig,
+        bridge: CrispClientBridge,
+        sessionId: String,
+        deviceToken: String?,
+    ) {
         val plan = CrispNotificationPolicy.onSessionLoaded(
             store.record(config.websiteId),
             sessionId,
@@ -154,7 +191,6 @@ internal class CrispNotificationSync(
             warnIfNoMessagingService()
             register(bridge, sessionId, it)
         }
-        promptIfNeeded(config, bridge, sessionId)
     }
 
     /**

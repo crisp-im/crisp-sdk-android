@@ -157,13 +157,17 @@ internal object CrispNotificationPolicy {
      * (`null` if it failed), the record without [previous][CrispNotificationSession],
      * whose token is to unregister if the handover joined it
      * (`null` otherwise: unreachable, see [onSessionLoaded]).
+     *
+     * [previous][CrispNotificationSession] is matched by its `sessionId` only,
+     * as the recorded session can change meanwhile (e.g. revoked or its prompt answered),
+     * not to hand it over again.
      */
     fun onHandoverLoaded(
         record: CrispNotificationRecord,
         previous: CrispNotificationSession,
         sessionId: String?,
     ): Pair<CrispNotificationRecord, String?> {
-        val next = if (record.session == previous) record.copy(session = null) else record
+        val next = if (record.session?.sessionId == previous.sessionId) record.copy(session = null) else record
         return next to previous.notificationId?.takeIf { previous.sessionId == sessionId }
     }
 

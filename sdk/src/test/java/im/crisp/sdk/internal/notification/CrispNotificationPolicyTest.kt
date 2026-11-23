@@ -149,6 +149,15 @@ class CrispNotificationPolicyTest {
         assertNull(record.session)
     }
 
+    @Test fun `the handover forgets the session changed meanwhile, not to hand it over again`() {
+        val revoked = enabled.copy(session = registered.copy(revoked = true))
+
+        val (record, token) = CrispNotificationPolicy.onHandoverLoaded(revoked, registered, "session_a")
+
+        assertEquals("fcm_1", token)
+        assertNull(record.session)
+    }
+
     @Test fun `a handover joining another session does not unregister there, but forgets the unreachable one`() {
         val (record, token) = CrispNotificationPolicy.onHandoverLoaded(enabled, registered, "session_b")
 

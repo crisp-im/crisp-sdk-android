@@ -316,10 +316,32 @@ class CrispLegacyStorageTest {
         File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
 
         var migrated: Map<String, CrispNotificationRecord>? = null
-        sessions.cleanUp { migrated = sessions.notificationRecords() }
+        sessions.cleanUp { migrated = sessions.notificationRecords(); false }
 
         assertEquals("user", migrated?.get("website")?.session?.tokenId)
         assertFalse(File(directory, "token_website.0").exists())
+    }
+
+    @Test fun `a website whose session cannot be read does not prevent migrating the others`() {
+        File(directory, "session_broken.0").mkdirs()
+        File(directory, "notification_enabled_broken.0").writeBytes(serialize(true))
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+
+        val records = sessions.notificationRecords()
+
+        assertEquals(setOf("website"), records.keys)
+        assertEquals(SESSION_ID, records["website"]?.session?.sessionId)
+    }
+
+    @Test fun `the notification settings left are cleaned up once migrated`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        File(directory, "notification_token.0").writeBytes(serialize("fcm"))
+
+        sessions.cleanUp { true }
+
+        assertEquals(setOf("session_website.0"), directory.list().orEmpty().toSet())
     }
 
     /** As serialized by the pre-3.x SDK: only the constant name is read, not the class. */

@@ -63,7 +63,7 @@ object CrispNotifications {
     /**
      * Passes the new FCM registration token of the device,
      * from `FirebaseMessagingService.onNewToken` of your own service.
-     * It is registered on the sessions once their chatbox loads again,
+     * It is registered right away on the sessions of the chatboxes loaded, otherwise once their chatbox loads again,
      * notifications sent meanwhile being lost.
      * [CrispNotificationService] calls it.
      *
@@ -78,7 +78,7 @@ object CrispNotifications {
      * Passes the Firebase installation ID (FID) of the device once registered with FCM, from
      * `FirebaseMessagingService.onRegistered` of your own service, if your app registers with it
      * (`firebase_messaging_installation_id_enabled` meta-data).
-     * It is registered on the sessions once their chatbox loads again,
+     * It is registered right away on the sessions of the chatboxes loaded, otherwise once their chatbox loads again,
      * notifications sent meanwhile being lost.
      * [CrispNotificationService] calls it.
      */

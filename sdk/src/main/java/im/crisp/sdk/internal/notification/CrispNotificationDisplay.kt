@@ -150,22 +150,25 @@ internal object CrispNotificationDisplay {
     }
 
     /**
-     * Creates the channel of [websiteId], or renames it, see [channelName]. Does nothing before Android 8, which has
-     * no channel.
+     * Creates the channel of [websiteId], or renames it if the app names it, see [channelName]. Does nothing before
+     * Android 8, which has no channel.
      *
      * Its other settings are only set when created: the user may have changed them since, and Android keeps them.
      */
     private fun createChannel(context: Context, websiteId: String): String {
         val channelId = "$CHANNEL_ID_PREFIX$websiteId"
         val manager = NotificationManagerCompat.from(context)
-        val name = channelName(context, websiteId)
+        val channelName = channelName(context, websiteId)
         manager.getNotificationChannelCompat(channelId)?.let { existing ->
-            // Renamed if the meta-data or the locale changed (or created by the pre-3.x SDK), keeping its settings
-            if (existing.name?.toString() != name.toString()) {
-                manager.createNotificationChannel(existing.toBuilder().setName(name).build())
+            // Renamed if the meta-data or the locale changed, keeping its settings.
+            // Otherwise kept, e.g. the "<website> chatbox" name of the pre-3.x SDK,
+            // more telling than the default one
+            if (channelName != null && existing.name?.toString() != channelName.toString()) {
+                manager.createNotificationChannel(existing.toBuilder().setName(channelName).build())
             }
             return channelId
         }
+        val name = channelName ?: context.getText(R.string.crisp_sdk_notification_channel_default_name)
         // Hidden on the lock screen by each notification (VISIBILITY_PRIVATE), as channels do not override it by default
         val channel = NotificationChannelCompat.Builder(channelId, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(name)
@@ -275,14 +278,15 @@ internal object CrispNotificationDisplay {
     }
 
     /**
-     * The name of the channel of [websiteId], from the meta-data of the app, the first set of:
-     * - `im.crisp.sdk.notification.channel.<websiteId>`, the `websiteId` as is (meta-data names take any character),
+     * The name of the channel of [websiteId] from the meta-data of the app, the first set of:
+     * - `im.crisp.sdk.notification.channel.<websiteId>`,
+     *    the `websiteId` as is (meta-data names take any character),
      * - `im.crisp.sdk.notification.channel.default`,
-     * - otherwise "Crisp".
+     * - otherwise `null`, the channel being named "Crisp" when created.
      *
      * Each as a string resource (`android:resource`), translated in the current locale, or a text (`android:value`).
      */
-    private fun channelName(context: Context, websiteId: String): CharSequence {
+    private fun channelName(context: Context, websiteId: String): CharSequence? {
         val metaData = metaData(context)
         // Either type, a resource (Int) or a text, while typed getters log a warning for the other one
         @Suppress("DEPRECATION")
@@ -296,9 +300,7 @@ internal object CrispNotificationDisplay {
             is CharSequence -> value.takeIf { it.isNotBlank() }
             else -> null
         }
-        return named("$CHANNEL_NAME_PREFIX$websiteId")
-            ?: named(CHANNEL_NAME_DEFAULT)
-            ?: context.getText(R.string.crisp_sdk_notification_channel_default_name)
+        return named("$CHANNEL_NAME_PREFIX$websiteId") ?: named(CHANNEL_NAME_DEFAULT)
     }
 
     private fun metaData(context: Context): Bundle? = try {

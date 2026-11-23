@@ -46,10 +46,10 @@ internal class CrispNotificationActivity : FragmentActivity() {
             return
         }
         supportFragmentManager.registerFragmentLifecycleCallbacks(sheetCallbacks, false)
-        // Restored with this Activity, otherwise
-        if (savedInstanceState == null) {
-            show(intent)
-        }
+        // Also when restored with its sheet (e.g. from the recent apps, after the process was killed),
+        // to check again that its session can still be shown: finishes otherwise (e.g. reset meanwhile),
+        // or loads the current one, the sheet restored being left as is for the same session
+        show(intent)
     }
 
     override fun onNewIntent(intent: Intent) {

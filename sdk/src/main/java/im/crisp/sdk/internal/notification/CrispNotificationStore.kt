@@ -6,6 +6,9 @@ import androidx.core.content.edit
 import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.util.Locale
@@ -79,12 +82,28 @@ internal class CrispNotificationStore(
 
     // region Device token
 
-    /** The FID or FCM token of the device, last fetched from Firebase or received by `onRegistered` or `onNewToken`. */
+    /**
+     * The FID or FCM token of the device,
+     * last fetched from Firebase or received by `onRegistered` or `onNewToken`.
+     */
     var deviceToken: String?
         @Synchronized get() = preferences.getString(DEVICE_TOKEN_KEY, null)
-        @Synchronized set(value) = preferences.edit {
-            if (value == null) remove(DEVICE_TOKEN_KEY) else putString(DEVICE_TOKEN_KEY, value)
+        @Synchronized set(value) {
+            preferences.edit {
+                if (value == null) remove(DEVICE_TOKEN_KEY) else putString(DEVICE_TOKEN_KEY, value)
+            }
+            _deviceTokens.value = value
         }
+
+    // Updated by the setter.
+    // Not lazy: its lock, taken before the one of this store by a reader, would deadlock with the setter
+    private val _deviceTokens = MutableStateFlow(preferences.getString(DEVICE_TOKEN_KEY, null))
+
+    /**
+     * The [deviceToken] and its changes, e.g. for the chatboxes loaded to register it,
+     * see [CrispNotificationSync.followDeviceToken].
+     */
+    val deviceTokens: StateFlow<String?> = _deviceTokens.asStateFlow()
 
     // endregion
 
@@ -112,9 +131,15 @@ internal class CrispNotificationStore(
         removeLegacy()
     }
 
-    /** Migrates the settings of the pre-3.x SDK if not done yet, e.g. before deleting its files. */
+    /**
+     * Migrates the settings of the pre-3.x SDK if not done yet, e.g. before deleting its files,
+     * returning whether they are, so that their files left can be deleted.
+     */
     @Synchronized
-    fun migrateLegacy() = migrateLegacyOnce()
+    fun migrateLegacy(): Boolean {
+        migrateLegacyOnce()
+        return preferences.getBoolean(LEGACY_MIGRATED_KEY, false)
+    }
 
     // endregion
 

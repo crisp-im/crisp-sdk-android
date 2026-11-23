@@ -190,6 +190,39 @@ class CrispNotificationSyncTest {
         assertEquals(listOf("registerNotification:fcm_saved"), calls.map { it.first })
     }
 
+    @Test fun `a token received while loaded replaces the registered one right away`() = test {
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
+        store.deviceToken = "fcm_1"
+        joined()
+        val job = launch { sync.followDeviceToken(config, bridge) }
+        runCurrent()
+        // Already registered
+        assertTrue(calls.isEmpty())
+
+        store.deviceToken = "fcm_2"
+        advanceUntilIdle()
+
+        assertEquals(listOf("unregisterNotification:fcm_1", "registerNotification:fcm_2"), calls.map { it.first })
+        assertEquals("fcm_2", store.record("website").session?.notificationId)
+        job.cancel()
+    }
+
+    @Test fun `a token received is not registered on a revoked session, nor once notifications cannot be shown`() = test {
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered.copy(revoked = true)) }
+        joined()
+        val job = launch { sync.followDeviceToken(config, bridge) }
+
+        store.deviceToken = "fcm_2"
+        advanceUntilIdle()
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
+        canShow = false
+        store.deviceToken = "fcm_3"
+        advanceUntilIdle()
+
+        assertTrue(calls.isEmpty())
+        job.cancel()
+    }
+
     @Test fun `the page is ready even while held not ready, as during a handover`() = test {
         store.update("website") { it.copy(enabled = true) }
         chatboxStore.holdNextReady {}

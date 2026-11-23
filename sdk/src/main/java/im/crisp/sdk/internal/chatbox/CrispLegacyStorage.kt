@@ -82,21 +82,29 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
     /**
      * [Cleans up][cleanUp] the files of the legacy pre-3.x SDK, once per process, in the background,
      * after [beforeCleanUp], e.g. to migrate its notification settings, which need its sessions and `tokenIds`.
+     * [beforeCleanUp] returns whether they are migrated, so that their files are deleted too.
      */
-    fun cleanUpOnce(beforeCleanUp: () -> Unit = {}) {
+    fun cleanUpOnce(beforeCleanUp: () -> Boolean = { false }) {
         if (isCleanedUp.compareAndSet(false, true)) {
             cleanUpScope.launch { cleanUp(beforeCleanUp) }
         }
     }
 
-    /** [Cleans up][cleanUp] after [beforeCleanUp], which is best effort, i.e. cleaned up even if it fails. */
-    internal fun cleanUp(beforeCleanUp: () -> Unit) {
-        try {
+    /**
+     * [Cleans up][cleanUp] after [beforeCleanUp], which is best effort, i.e. cleaned up even if it fails,
+     * keeping the notification settings unless it returns that they are migrated.
+     */
+    internal fun cleanUp(beforeCleanUp: () -> Boolean) {
+        // Not expected to throw (the migration catches its own failures),
+        // only guarded not to crash the app from cleanUpScope, which has no exception handler,
+        // nor skip the clean up: the notification files are then kept, not knowing whether they are migrated
+        val isNotificationMigrated = try {
             beforeCleanUp()
         } catch (e: Exception) {
             log(Level.WARN, LOG_TAG, "Cannot prepare the clean up of the files of the pre-3.x SDK", e)
+            false
         }
-        cleanUp()
+        cleanUp(isNotificationMigrated)
     }
 
     /**
@@ -120,24 +128,35 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
         return files.mapNotNull { file ->
             val key = NOTIFICATION_ENABLED_FILE.websiteKey(file) ?: return@mapNotNull null
             if (file.readSerialized() != true) return@mapNotNull null
-            val sessionId = File(dataCacheDirectory, "$SESSION_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
-                .takeIf { it.exists() }
-                ?.let { parseSessionId(it.readHead()) }
-            val session = sessionId?.let {
-                CrispNotificationSession(
-                    sessionId = it,
-                    tokenId = File(dataCacheDirectory, "$TOKEN_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
-                        .takeIf { file -> file.exists() }
-                        ?.readSerialized() as? String,
-                    notificationId = token,
-                    promptAnswered = File(dataCacheDirectory, "$NOTIFICATION_STATUS_PREFIX$it$ENTRY_KEY_SUFFIX")
-                        .takeIf { file -> file.exists() }
-                        ?.readBytes()
-                        ?.let(::isPromptAnswered) == true
-                )
+            // Each website on its own, not to lose the others if its files cannot be read
+            try {
+                key to notificationRecord(key, token)
+            } catch (e: Exception) {
+                log(Level.WARN, LOG_TAG, "Cannot read the notification settings of a website of the pre-3.x SDK", e)
+                null
             }
-            key to CrispNotificationRecord(enabled = true, session = session)
         }.toMap()
+    }
+
+    /** The notification settings of the enabled website of [key], see [notificationRecords]. */
+    private fun notificationRecord(key: String, token: String?): CrispNotificationRecord {
+        val sessionId = File(dataCacheDirectory, "$SESSION_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
+            .takeIf { it.exists() }
+            ?.let { parseSessionId(it.readHead()) }
+        val session = sessionId?.let {
+            CrispNotificationSession(
+                sessionId = it,
+                tokenId = File(dataCacheDirectory, "$TOKEN_ENTRY_PREFIX$key$ENTRY_KEY_SUFFIX")
+                    .takeIf { file -> file.exists() }
+                    ?.readSerialized() as? String,
+                notificationId = token,
+                promptAnswered = File(dataCacheDirectory, "$NOTIFICATION_STATUS_PREFIX$it$ENTRY_KEY_SUFFIX")
+                    .takeIf { file -> file.exists() }
+                    ?.readBytes()
+                    ?.let(::isPromptAnswered) == true
+            )
+        }
+        return CrispNotificationRecord(enabled = true, session = session)
     }
 
     /** Deletes the notification settings of the pre-3.x SDK, once [migrated][notificationRecords]. */
@@ -182,7 +201,8 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
     /**
      * Deletes the files of the legacy pre-3.x SDK, in its `DiskLruCache` (see [CrispLegacyStorage]), except:
      * - the sessions that can be restored, not restored yet: those without `tokenId` cached for their website,
-     * - the notification entries (`notification_*`), deleted once [migrated][notificationRecords] instead.
+     * - the notification entries (`notification_*`), until [migrated][notificationRecords]
+     *   ([isNotificationMigrated]): deleted by [removeNotifications] once migrated, then here if it could not.
      *
      * So deletes:
      * - the other entries (e.g. `website`, `settings_*`, `messages_*`, `message_*`, `upload_*`, or `session`
@@ -197,7 +217,7 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
      *
      * Best effort: what cannot be deleted is left, so deleting it is retried on the next launch.
      */
-    internal fun cleanUp() {
+    internal fun cleanUp(isNotificationMigrated: Boolean = false) {
         // Found to be deleted, logged once cleaned up, and those that could not be,
         // logged to be retried
         var isFound = false
@@ -215,9 +235,10 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
             val (tokens, others) = files.partition { TOKEN_FILE.matches(it.name) }
             val tokenKeys = tokens.mapNotNull { TOKEN_FILE.websiteKey(it) }.toSet()
             others.filter { file ->
-                // Kept: the sessions that can be restored (without a paired token), and notifications
+                // Kept: the sessions that can be restored (without a paired token),
+                // and notifications until migrated
                 SESSION_FILE.websiteKey(file).let { it == null || it in tokenKeys } &&
-                    !NOTIFICATION_FILE.matches(file.name)
+                    (isNotificationMigrated || !NOTIFICATION_FILE.matches(file.name))
             }.forEach(::delete)
             // Only once their session is deleted, not to restore it meanwhile, or if it cannot be
             tokens.filter { token ->
