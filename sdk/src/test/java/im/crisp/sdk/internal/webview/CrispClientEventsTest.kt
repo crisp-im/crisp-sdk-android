@@ -27,25 +27,38 @@ class CrispClientEventsTest {
         backgroundScope.launch { store.clientEvents.collect { received += it } }
 
         events.dispatch("onInterfaceLifecycle", """{"state":"ready"}""")
+        events.dispatch("onSessionLoaded", """{"session_id":"session_a"}""")
         events.dispatch("onMessageSent", message("text", "\"Hi\"", 1))
         // Notes cannot be represented by the public model
         events.dispatch("onMessageReceived", message("note", "\"internal\"", 2))
         events.dispatch("onMessageReceived", message("text", "\"Hello\"", 3))
 
         assertEquals(CrispChatboxState.Ready, store.state.value)
-        assertEquals(CrispClientEvent.Loaded, received[0])
+        assertEquals(CrispClientEvent.Loaded("session_a"), received[0])
         assertEquals(
             listOf(1L to MessageContent.TextContent("Hi"), 3L to MessageContent.TextContent("Hello")),
             received.drop(1).map {
                 val message = when (it) {
                     is CrispClientEvent.MessageSent -> it.message
                     is CrispClientEvent.MessageReceived -> it.message
-                    CrispClientEvent.Loaded -> error("Unexpected $it")
+                    is CrispClientEvent.Loaded -> error("Unexpected $it")
                 }
                 message.fingerprint to message.content
             },
         )
         assertEquals(CrispClientEvent.MessageReceived::class, received[2]::class)
+    }
+
+    @Test fun `the session loaded is forwarded, without session in static mode`() = runTest(UnconfinedTestDispatcher()) {
+        val store = CrispChatboxStore(backgroundScope)
+        CrispClientBridge({ "null" }, events).bindTo(store)
+
+        events.dispatch("onSessionLoaded", """{"session_id":"session_a"}""")
+        assertEquals("session_a", store.sessionId.value)
+
+        // sendEvent sends {} for an undefined session_id
+        events.dispatch("onSessionLoaded", "{}")
+        assertEquals(null, store.sessionId.value)
     }
 
     @Test fun `only socket state logs are parsed`() {

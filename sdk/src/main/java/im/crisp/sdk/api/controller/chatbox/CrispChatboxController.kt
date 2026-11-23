@@ -274,7 +274,7 @@ class CrispChatboxController : AutoCloseable {
     //  like Media3 `Player.isPlaying` alongside `onIsPlayingChanged`.
     //  Reset it to `false` when the chatbox detaches, e.g. when the controller is replaced, without notifying onChatClosed.
     // TODO: maybe expose `isOngoing: StateFlow<Boolean>`,
-    //  e.g. set to `true` once the session identifier is received after CrispClientEvent.Loaded,
+    //  e.g. set to `true` once CrispClientEvent.Loaded is received,
     //  and to `false` once Session.reset succeeds or the chat is closed.
     //  To clarify: a session identifier exists before any conversation starts, so Session.isOngoing
     //  (`isSessionOngoing`) may be the better source, refreshed on Loaded and on MessageSent / MessageReceived.
@@ -315,11 +315,7 @@ class CrispChatboxController : AutoCloseable {
 
     private suspend fun onClientEvent(event: CrispClientEvent) {
         when (event) {
-            is CrispClientEvent.Loaded -> {
-                val sessionId =
-                    await("session.getIdentifier", null) { getSessionIdentifier().rawValue }
-                sessionId?.let { notify { onSessionLoaded(it) } }
-            }
+            is CrispClientEvent.Loaded -> notify { onSessionLoaded(event.sessionId) }
 
             is CrispClientEvent.MessageSent -> notify { onMessageSent(event.message) }
             is CrispClientEvent.MessageReceived -> notify { onMessageReceived(event.message) }

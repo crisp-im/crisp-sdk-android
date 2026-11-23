@@ -62,8 +62,12 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -239,6 +243,8 @@ class CrispChatboxView @JvmOverloads constructor(
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_START, Lifecycle.Event.ON_STOP -> updateChatOpened()
+            // E.g. back from the system settings or a permission request of the app
+            Lifecycle.Event.ON_RESUME -> checkNotificationsAllowed()
             Lifecycle.Event.ON_DESTROY -> onDestroy()
             else -> Unit
         }
@@ -624,10 +630,8 @@ class CrispChatboxView @JvmOverloads constructor(
                 val scope = observedLifecycle?.coroutineScope ?: return@onPickerClick
                 scope.launch {
                     try {
-                        notificationSync.onPickerClick(config, it, event) {
-                            // Registers the token now allowed
-                            startNotifications(config, it)
-                        }
+                        // Registers the token now allowed
+                        notificationSync.onPickerClick(config, it, event, ::checkNotificationsAllowed)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -677,12 +681,12 @@ class CrispChatboxView @JvmOverloads constructor(
     internal val config: CrispConfig? get() = store.config.value
     private var pendingConfig: CrispConfig? = null
     private val sessions: CrispSessions by lazy { CrispSessions.from(context) }
-    private val legacyStorage: CrispLegacyStorage by lazy {
-        CrispLegacyStorage.from(context).also {
-            // Its notification settings first, which need the sessions and tokenIds it deletes,
-            // then their files, once migrated
-            it.cleanUpOnce { CrispNotificationStore.get(context).migrateLegacy() }
-        }
+    // Not lazy: cleaned up in the background right away, so that the notification settings are migrated there,
+    // rather than on the main thread by the first read of the load (see CrispNotificationStore)
+    private val legacyStorage: CrispLegacyStorage = CrispLegacyStorage.from(context).also {
+        // Its notification settings first, which need the sessions and tokenIds it deletes,
+        // then their files, once migrated
+        it.cleanUpOnce { CrispNotificationStore.get(context).migrateLegacy() }
     }
     private val notificationSync: CrispNotificationSync by lazy {
         CrispNotificationSync(context, store, permissionManager)
@@ -928,6 +932,20 @@ class CrispChatboxView @JvmOverloads constructor(
     private var notificationJob: Job? = null
 
     /**
+     * Whether the app can show notifications, checked again once resumed,
+     * as the user can allow them outside of the chatbox,
+     * e.g. in the system settings or from a permission request of the app.
+     * Unlike the camera or microphone, asked when needed,
+     * the token is only registered once loaded otherwise.
+     */
+    private val notificationsAllowed = MutableStateFlow(false)
+
+    /** Checks again whether notifications are allowed, registering or unregistering the token if it changed. */
+    private fun checkNotificationsAllowed() {
+        if (notificationJob != null) notificationsAllowed.value = notificationSync.canShow()
+    }
+
+    /**
      * Hands the device over from [previous][CrispNotificationSession] session of the website,
      * whose notifications are registered.
      * Loads it again before loading [config][CrispConfig] (e.g. with another `tokenId`),
@@ -989,27 +1007,40 @@ class CrispChatboxView @JvmOverloads constructor(
      * Once the page of [config][CrispConfig] is ready (its session reset first if requested),
      * registers the notifications of its session, or unregisters them,
      * then prompts the user to enable them when sending a message, see [CrispNotificationSync].
+     *
+     * Again for each session the page joins (e.g. reset in the page, purged by an operator,
+     * see [CrispChatboxStore.sessionId]), and once notifications are allowed or blocked meanwhile
+     * (see [notificationsAllowed]), canceling what was done for the previous one.
      */
     private fun startNotifications(config: CrispConfig, bridge: CrispClientBridge) {
         val scope = observedLifecycle?.coroutineScope ?: return
         notificationJob?.cancel()
+        notificationsAllowed.value = notificationSync.canShow()
         notificationJob = scope.launch {
-            try {
-                notificationSync.onPageLoaded(config, bridge, loadingTimeout)
-                // Scoped, so that their exceptions are caught below
-                coroutineScope {
-                    launch { notificationSync.followDeviceToken(config, bridge) }
-                    store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
-                        notificationSync.promptIfNeeded(config, bridge, notificationSync.awaitJoined(bridge))
-                    }
+            combine(store.sessionId.filterNotNull(), notificationsAllowed, ::Pair)
+                .distinctUntilChanged()
+                .collectLatest { syncNotifications(config, bridge) }
+        }
+    }
+
+    /** Registers or unregisters the notifications of the session joined, see [startNotifications]. */
+    private suspend fun syncNotifications(config: CrispConfig, bridge: CrispClientBridge) {
+        try {
+            notificationSync.onPageLoaded(config, bridge, loadingTimeout)
+            // Scoped, so that their exceptions are caught below
+            coroutineScope {
+                launch { notificationSync.followDeviceToken(config, bridge) }
+                store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
+                    notificationSync.promptIfNeeded(config, bridge, notificationSync.awaitJoined())
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: JSEvaluationException.PageUnloaded) {
-                // Replaced by another page, which registers them on its own
-            } catch (e: Exception) {
-                log(Level.WARN, LOG_TAG, "Cannot update the notifications of the session", e)
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: JSEvaluationException.PageUnloaded) {
+            // Replaced by another page, which registers them on its own
+        } catch (e: Exception) {
+            // Retried on the next session joined or change of the permission
+            log(Level.WARN, LOG_TAG, "Cannot update the notifications of the session", e)
         }
     }
 

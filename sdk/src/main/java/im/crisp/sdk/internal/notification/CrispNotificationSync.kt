@@ -43,8 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * The Crisp servers silently drop `notification:provider:register` and `unregister`
  * (see `crisp-relay-socket-client` and `crisp-library-relay`):
- * - sent before the session is joined, so they are only sent once the page is ready while its socket is connected
- *   (see [CrispChatboxStore.isPageReady]), not to be buffered while disconnected,
+ * - sent before the session is joined, so they are only sent once the session is loaded while its socket is connected
+ *   (see [CrispChatboxStore.sessionId]), not to be buffered while disconnected,
  *   as they would be sent before joining again,
  * - once rate-limited (10 per 3 minutes per session and per IP).
  *
@@ -60,40 +60,37 @@ internal class CrispNotificationSync(
     private val permissionManager: CrispPermissionManager,
     private val store: CrispNotificationStore = CrispNotificationStore.get(context),
     // Whether the app can show notifications: Firebase set up and notifications allowed by the user
-    private val canShow: () -> Boolean = {
+    private val canShowNotifications: () -> Boolean = {
         CrispFirebase.isAvailable(context) && CrispNotificationDisplay.areEnabled(context)
     },
     // The FID or FCM token of the device
     private val fetchToken: suspend () -> String? = { CrispFirebase.fetchToken(context) },
     private val spacing: CrispNotificationSpacing = CrispNotificationSpacing.instance,
 ) {
+    /**
+     * Whether the app can show notifications: Firebase set up and notifications allowed by the user,
+     * e.g. to register the token again once allowed outside of the chatbox.
+     */
+    fun canShow(): Boolean = canShowNotifications()
+
     // region Session joined
 
     /**
-     * The session joined by the page of [bridge][CrispClientBridge],
-     * once it is ready while its socket is connected
-     * (see [CrispChatboxStore.isPageReady][CrispChatboxStore._isPageReady]).
+     * The session joined by the page, while its socket is connected (see [CrispChatboxStore.sessionId]).
      * Needed before sending to the Crisp servers.
      */
-    suspend fun awaitJoined(bridge: CrispClientBridge): String {
-        combine(
-            chatboxStore.isPageReady,
-            chatboxStore.isSocketConnected
-        ) { isReady, isConnected ->
-            isReady && isConnected
-        }.first { it }
-        return bridge.getSessionIdentifier().rawValue
-    }
+    suspend fun awaitJoined(): String = combine(
+        chatboxStore.sessionId,
+        chatboxStore.isSocketConnected,
+    ) { sessionId, isConnected ->
+        sessionId?.takeIf { isConnected }
+    }.filterNotNull().first()
 
     /**
-     * The session loaded by the page of [bridge][CrispClientBridge], once it is ready,
-     * even while its socket is disconnected: the Web client loads it before being ready.
+     * The session loaded by the page, even while its socket is disconnected.
      * Enough for what stays on the device.
      */
-    private suspend fun awaitLoaded(bridge: CrispClientBridge): String {
-        chatboxStore.isPageReady.first { it }
-        return bridge.getSessionIdentifier().rawValue
-    }
+    private suspend fun awaitLoaded(): String = chatboxStore.sessionId.filterNotNull().first()
 
     /**
      * Once the page loaded with [config][CrispConfig] joined its session,
@@ -106,7 +103,7 @@ internal class CrispNotificationSync(
      * as Firebase does not time out (e.g. offline).
      */
     suspend fun onPageLoaded(config: CrispConfig, bridge: CrispClientBridge, timeout: Duration) {
-        val sessionId = awaitJoined(bridge)
+        val sessionId = awaitJoined()
         val record = store.record(config.websiteId)
         log(
             Level.DEBUG,
@@ -117,7 +114,7 @@ internal class CrispNotificationSync(
         // Nothing to do for a website that never used notifications,
         // without fetching the FID or FCM token
         if (!record.enabled && record.session?.notificationId == null) return
-        val deviceToken = if (record.enabled && canShow()) {
+        val deviceToken = if (record.enabled && canShowNotifications()) {
             // Wrapped, as `null` is also a failed fetch (logged by CrispFirebase)
             val fetched = withTimeoutOrNull(timeout) { Result.success(fetchToken()) }
             if (fetched == null) log(Level.WARN, LOG_TAG, "Timed out fetching the FCM token")
@@ -153,10 +150,10 @@ internal class CrispNotificationSync(
      */
     suspend fun followDeviceToken(config: CrispConfig, bridge: CrispClientBridge) {
         store.deviceTokens.filterNotNull().collect { token ->
-            val sessionId = awaitJoined(bridge)
+            val sessionId = awaitJoined()
             val record = store.record(config.websiteId)
             val session = record.session?.takeIf { it.sessionId == sessionId } ?: return@collect
-            if (!record.enabled || session.revoked || session.notificationId == token || !canShow()) return@collect
+            if (!record.enabled || session.revoked || session.notificationId == token || ! canShowNotifications()) return@collect
             log(Level.DEBUG, LOG_TAG, "FID or FCM token changed to ${token.short()} on session ${sessionId.short()}")
             applyPlan(config, bridge, sessionId, token)
         }
@@ -172,13 +169,14 @@ internal class CrispNotificationSync(
         sessionId: String,
         deviceToken: String?,
     ) {
-        val plan = CrispNotificationPolicy.onSessionLoaded(
-            store.record(config.websiteId),
-            sessionId,
-            config.tokenId,
-            deviceToken,
-        )
-        store.update(config.websiteId) { plan.record }
+        // Within the update, not to overwrite a change made meanwhile from another thread,
+        // e.g. CrispNotifications.setEnabled or CrispSessionController.Session.reset
+        lateinit var plan: CrispNotificationPlan
+        store.update(config.websiteId) { record ->
+            CrispNotificationPolicy.onSessionLoaded(record, sessionId, config.tokenId, deviceToken)
+                .also { plan = it }
+                .record
+        }
         log(
             Level.DEBUG,
             LOG_TAG,
@@ -201,7 +199,7 @@ internal class CrispNotificationSync(
      */
     suspend fun beforeReset(config: CrispConfig, bridge: CrispClientBridge, timeout: Duration) {
         if (store.record(config.websiteId).session?.notificationId == null) return
-        val sessionId = withTimeoutOrNull(timeout) { awaitJoined(bridge) }
+        val sessionId = withTimeoutOrNull(timeout) { awaitJoined() }
         if (sessionId == null) {
             log(Level.WARN, LOG_TAG, "Session not joined in time, reset without unregistering its FCM token")
             return
@@ -258,7 +256,7 @@ internal class CrispNotificationSync(
         bridge: CrispClientBridge,
         timeout: Duration,
     ): Boolean {
-        val sessionId = withTimeoutOrNull(timeout) { awaitJoined(bridge) }
+        val sessionId = withTimeoutOrNull(timeout) { awaitJoined() }
         if (sessionId == null) {
             log(Level.WARN, LOG_TAG, "The previous session was not joined in time to unregister its notifications")
             dropHandover(config, previous)
@@ -367,7 +365,7 @@ internal class CrispNotificationSync(
         onGranted: () -> Unit,
     ) {
         if (event.fingerprint != PROMPT_FINGERPRINT) return
-        val loaded = awaitLoaded(bridge)
+        val loaded = awaitLoaded()
         log(Level.DEBUG, LOG_TAG, "Prompt answered on session ${loaded.short()}: ${event.choiceValue}")
         store.update(config.websiteId) { record ->
             val session = record.session?.takeIf { it.sessionId == loaded } ?: return@update record

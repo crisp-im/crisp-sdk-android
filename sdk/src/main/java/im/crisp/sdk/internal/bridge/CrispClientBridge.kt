@@ -144,6 +144,13 @@ internal class CrispClientBridge(private val evaluator: JSEvaluator, val events:
     fun onMessageReceived(handler: (Message) -> Unit) =
         events.register("onMessageReceived", handler)
 
+    /**
+     * The session joined by the page, from its `session:loaded` event, `null` in static mode.
+     * Wrapped in an object, as `sendEvent` sends `{}` for a missing payload.
+     */
+    fun onSessionLoaded(handler: (String?) -> Unit) =
+        events.register<SessionLoadedEvent>("onSessionLoaded") { handler(it.sessionId) }
+
     // Hand-written JS (index.html) events.
     internal fun onPickerClick(handler: (PickerClickEvent) -> Unit) =
         events.register("onPickerClick", handler)
@@ -216,6 +223,9 @@ internal data class InterfaceActionEvent(
         @Serializable data class Pointer(val x: Double, val y: Double)
     }
 }
+
+@Serializable
+internal data class SessionLoadedEvent(@SerialName("session_id") val sessionId: String? = null)
 
 /** Emitted when the user taps a button on a picker message injected from native. */
 @Serializable

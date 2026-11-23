@@ -69,17 +69,25 @@ internal class CrispChatboxStore(
     val state: StateFlow<CrispChatboxState> = _state.asStateFlow()
 
     /**
-     * Whether the page is ready (its [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY] interface lifecycle event),
-     * even while held not ready (see [holdNextReady]), until another page starts.
+     * The session the page joined (its `session:loaded` event), until another page starts,
+     * even while held not ready (see [holdNextReady]).
      *
-     * The Web client only emits it once its session is joined
-     * (`triggerSessionLoaded`, from the `session:state` the servers send once joined),
-     * unless its socket is disabled (static mode),
-     * so it tells that the session is joined while [isSocketConnected].
-     * Not emitted again when the socket reconnects, joining it again.
+     * The Web client emits it once the servers sent the `session:state` of the session joined
+     * (`triggerSessionLoaded`), so it tells that the session is joined while [isSocketConnected].
+     * Not emitted again when the socket reconnects, joining it again,
+     * but emitted again with the new session when the Web client resets it in the page
+     * (e.g. purged by an operator, `session:request:purge`), without loading another page.
+     * `null` in static mode (its socket disabled), as there is no session.
+     *
+     * It can be emitted before or after the [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY]
+     * interface lifecycle event: after it for a session restored (the chat is initialized from its state first),
+     * before it for a new one, so the page still becomes ready on the latter.
      */
-    private val _isPageReady = MutableStateFlow(false)
-    val isPageReady: StateFlow<Boolean> = _isPageReady.asStateFlow()
+    private val _sessionId = MutableStateFlow<String?>(null)
+    val sessionId: StateFlow<String?> = _sessionId.asStateFlow()
+
+    // The session [CrispClientEvent.Loaded] was emitted for on this page, not to emit it twice
+    private var loadedSessionId: String? = null
 
     /**
      * Run instead of becoming ready when the page is.
@@ -110,19 +118,40 @@ internal class CrispChatboxStore(
         onPageReady = null
         isHandingOver = false
         _isSocketConnected.value = false
-        _isPageReady.value = false
+        _sessionId.value = null
+        loadedSessionId = null
         _state.value = CrispChatboxState.Loading
     }
 
+    /**
+     * The page is ready (its [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY]
+     * interface lifecycle event), or the page prepared by [holdNextReady] can become ready.
+     * Then emits [CrispClientEvent.Loaded] once its session is known, see [onSessionLoaded].
+     */
     internal fun onPageFinished() {
-        _isPageReady.value = true
         onPageReady?.let {
             onPageReady = null
             it()
             return
         }
         _state.value = CrispChatboxState.Ready
-        emitClientEvent(CrispClientEvent.Loaded)
+        emitLoadedIfNeeded()
+    }
+
+    /**
+     * The page joined [sessionId] (its `session:loaded` event, see [sessionId][CrispChatboxStore.sessionId]),
+     * notified once ready, or right away if ready already, e.g. reset in the page.
+     */
+    internal fun onSessionLoaded(sessionId: String?) {
+        _sessionId.value = sessionId
+        if (_state.value is CrispChatboxState.Ready) emitLoadedIfNeeded()
+    }
+
+    private fun emitLoadedIfNeeded() {
+        val sessionId = _sessionId.value ?: return
+        if (sessionId == loadedSessionId) return
+        loadedSessionId = sessionId
+        emitClientEvent(CrispClientEvent.Loaded(sessionId))
     }
 
     internal fun onError(error: Throwable) {

@@ -52,6 +52,8 @@ internal fun CrispClientBridge.bindTo(store: CrispChatboxStore) {
         }
     }
 
+    onSessionLoaded(store::onSessionLoaded)
+
     onMessageSent { message ->
         message.toModel()?.let { store.emitClientEvent(CrispClientEvent.MessageSent(it)) }
     }

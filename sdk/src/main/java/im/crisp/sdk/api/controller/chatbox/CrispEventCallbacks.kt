@@ -132,7 +132,8 @@ interface CrispEventCallbacks {
 
     /**
      * The Web client finished loading the session [sessionId]. Called again on each reload,
-     * e.g. after a retry, or when the hosting `Activity` is recreated.
+     * e.g. after a retry, or when the hosting `Activity` is recreated,
+     * and with the new session when it is reset, e.g. by an operator.
      */
     fun onSessionLoaded(sessionId: String) {}
 

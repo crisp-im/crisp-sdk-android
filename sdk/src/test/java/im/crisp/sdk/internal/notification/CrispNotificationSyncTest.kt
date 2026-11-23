@@ -40,14 +40,12 @@ class CrispNotificationSyncTest {
     // The notification calls made to the page, with the virtual time they were made at
     private val calls = mutableListOf<Pair<String, Long>>()
     private lateinit var scope: TestScope
-    // The session the page answers to getSessionIdentifier()
-    private var sessionId = "session_a"
     private val bridge = CrispClientBridge(
         { script ->
             Regex("""CrispClient\.(\w+Notification)\("([^"]*)"""").find(script)?.let {
                 calls += "${it.groupValues[1]}:${it.groupValues[2]}" to scope.currentTime
             }
-            if ("getSessionIdentifier" in script) "\"$sessionId\"" else "null"
+            "null"
         },
         JSEventBus(),
     )
@@ -58,7 +56,7 @@ class CrispNotificationSyncTest {
         chatboxStore,
         CrispPermissionManager(context),
         store,
-        canShow = { canShow },
+        canShowNotifications = { canShow },
         fetchToken = { fetches++; delay(fetchDuration); fcmToken },
         spacing = spacing,
     )
@@ -68,8 +66,7 @@ class CrispNotificationSyncTest {
     private val registered = CrispNotificationSession("session_a", "user_a", notificationId = "fcm_1")
 
     private fun joined(sessionId: String = "session_a") {
-        this.sessionId = sessionId
-        chatboxStore.onPageFinished()
+        chatboxStore.onSessionLoaded(sessionId)
         chatboxStore.onSocketStateChanged(true)
     }
 
@@ -80,11 +77,11 @@ class CrispNotificationSyncTest {
 
     // region onPageLoaded
 
-    @Test fun `the token is registered once the page is ready while the socket is connected`() = test {
+    @Test fun `the token is registered once the session is loaded while the socket is connected`() = test {
         store.update("website") { it.copy(enabled = true) }
         val job = launch { sync.onPageLoaded(config, bridge, timeout) }
 
-        chatboxStore.onPageFinished()
+        chatboxStore.onSessionLoaded("session_a")
         runCurrent()
         // Would be buffered while disconnected, then dropped by the servers before joining again
         assertTrue(calls.isEmpty())
@@ -387,7 +384,7 @@ class CrispNotificationSyncTest {
 
     @Test fun `a choice in the prompt is handled right away, even while disconnected`() = test {
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
-        chatboxStore.onPageFinished()
+        chatboxStore.onSessionLoaded("session_a")
         val event = PickerClickEvent(CrispNotificationSync.PROMPT_FINGERPRINT, PickerId("notifications"), "skip")
 
         sync.onPickerClick(config, bridge, event) {}
