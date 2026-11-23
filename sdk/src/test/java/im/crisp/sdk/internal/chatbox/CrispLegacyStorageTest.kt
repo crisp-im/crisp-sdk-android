@@ -245,7 +245,12 @@ class CrispLegacyStorageTest {
             mapOf(
                 "website" to CrispNotificationRecord(
                     enabled = true,
-                    session = CrispNotificationSession(SESSION_ID, notificationId = "fcm", promptAnswered = true),
+                    session = CrispNotificationSession(
+                        SESSION_ID,
+                        notificationId = "fcm",
+                        promptAnswered = true,
+                        promptShown = true,
+                    ),
                 )
             ),
             sessions.notificationRecords(),
@@ -260,12 +265,24 @@ class CrispLegacyStorageTest {
         assertEquals("user", sessions.notificationRecords()["website"]?.session?.tokenId)
     }
 
-    @Test fun `the prompt is not answered while only asked`() {
+    @Test fun `the prompt only asked is not answered, but shown again`() {
         saveSession("website", SESSION_ID)
         File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
         File(directory, "notification_status_$SESSION_ID.0").writeBytes(serialize(PermissionStatus.ASKED))
 
-        assertEquals(false, sessions.notificationRecords()["website"]?.session?.promptAnswered)
+        val session = sessions.notificationRecords()["website"]?.session
+        assertEquals(false, session?.promptAnswered)
+        assertEquals(true, session?.promptShown)
+    }
+
+    @Test fun `the prompt not shown yet is neither answered nor shown again`() {
+        saveSession("website", SESSION_ID)
+        File(directory, "notification_enabled_website.0").writeBytes(serialize(true))
+        File(directory, "notification_status_$SESSION_ID.0").writeBytes(serialize(PermissionStatus.NONE))
+
+        val session = sessions.notificationRecords()["website"]?.session
+        assertEquals(false, session?.promptAnswered)
+        assertEquals(false, session?.promptShown)
     }
 
     @Test fun `a website without notifications enabled is not migrated`() {

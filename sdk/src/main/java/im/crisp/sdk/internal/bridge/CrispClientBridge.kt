@@ -129,6 +129,10 @@ internal class CrispClientBridge(private val evaluator: JSEvaluator, val events:
 
     suspend fun reset(): Unit = caller("reset")()
 
+    /** Hand-written JS (index.html), see [IdentityPromptState]. */
+    internal suspend fun getIdentityPromptState(promptFingerprint: MessageFingerprint): IdentityPromptState =
+        JSCaller("getIdentityPromptState", evaluator)(jsEncode(promptFingerprint))
+
     // endregion
 
     // region Events (JS → native). Each registers a handler on the matching channel.
@@ -223,6 +227,25 @@ internal data class InterfaceActionEvent(
         @Serializable data class Pointer(val x: Double, val y: Double)
     }
 }
+
+/**
+ * The identity request of the Web client and the notification prompt in the page,
+ * see [CrispNotificationPrompt][im.crisp.sdk.internal.notification.CrispNotificationPrompt].
+ */
+@Serializable
+internal data class IdentityPromptState(
+    /** The notification prompt is in the messages. */
+    @SerialName("has_prompt") val hasPrompt: Boolean = false,
+    /** The `$identity` message of the Web client is in the messages. */
+    @SerialName("has_identity_message") val hasIdentityMessage: Boolean = false,
+    /** The user sent a message. */
+    @SerialName("has_user_message") val hasUserMessage: Boolean = false,
+    /**
+     * The identity form of the Web client is shown over the chatbox,
+     * when only the email or phone is asked.
+     */
+    @SerialName("is_identity_form_shown") val isIdentityFormShown: Boolean = false,
+)
 
 @Serializable
 internal data class SessionLoadedEvent(@SerialName("session_id") val sessionId: String? = null)

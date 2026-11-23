@@ -92,6 +92,7 @@
     <script type="module">
       import {
         connectLogger,
+        getMessages,
         injectMessage,
         registerCrispWidget,
       } from './crisp-client.js'
@@ -122,6 +123,21 @@
           }))
         }
         return injectMessage(message)
+      }
+
+      // The identity request of the Web client and the notification prompt, see IdentityPromptState.
+      // Its identity form (shown instead of its `$identity` message when only the email or phone is asked)
+      // is found by the names of its fields: check them on each crisp-client update.
+      // TODO: replace by a `chat:intent:identity` event, see CrispNotificationPrompt
+      globalThis.getIdentityPromptState = async function (promptFingerprint) {
+        const messages = (await getMessages()) || []
+        return {
+          has_prompt: messages.some((message) => message.fingerprint === promptFingerprint),
+          has_identity_message: messages.some((message) => message.fingerprint === '$identity'),
+          has_user_message: messages.some((message) => message.from === 'user'),
+          is_identity_form_shown:
+            document.querySelector('input[name="identity_email"], input[name="identity_phone"]') !== null,
+        }
       }
 
       connectLogger((level, ns, value) => {

@@ -387,7 +387,7 @@ class CrispNotificationSyncTest {
         chatboxStore.onSessionLoaded("session_a")
         val event = PickerClickEvent(CrispNotificationSync.PROMPT_FINGERPRINT, PickerId("notifications"), "skip")
 
-        sync.onPickerClick(config, bridge, event) {}
+        sync.onPickerClick(config, event) {}
 
         assertTrue(store.record("website").session?.promptAnswered == true)
     }

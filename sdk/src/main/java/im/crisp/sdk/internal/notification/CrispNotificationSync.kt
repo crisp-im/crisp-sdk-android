@@ -13,8 +13,6 @@ import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.PickerClickEvent
 import im.crisp.sdk.internal.bridge.types.ConversationMessageContent
 import im.crisp.sdk.internal.bridge.types.GenericMessage
-import im.crisp.sdk.internal.bridge.types.LocalMessage
-import im.crisp.sdk.internal.bridge.types.LocalMessageFingerprint
 import im.crisp.sdk.internal.bridge.types.Message
 import im.crisp.sdk.internal.bridge.types.MessageFingerprint
 import im.crisp.sdk.internal.bridge.types.MessageSender
@@ -27,8 +25,6 @@ import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.permission.CrispPermissionIntent
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -96,7 +92,6 @@ internal class CrispNotificationSync(
      * Once the page loaded with [config][CrispConfig] joined its session,
      * registers the token of the device on it,
      * or unregisters it (see [CrispNotificationPolicy.onSessionLoaded]).
-     * Then prompts to enable notifications.
      *
      * Runs as long as the page, from the time it starts.
      * The token is fetched within [timeout], falling back to the one last saved,
@@ -123,8 +118,7 @@ internal class CrispNotificationSync(
                 // Unknown rather than not allowed.
                 // The one registered on this session (e.g. migrated from the pre-3.x SDK) is kept,
                 // not to stop notifications on a failed fetch,
-                // and updated on the next load or once received (see followDeviceToken).
-                // No prompt: notifications are allowed (canShow)
+                // and updated on the next load or once received (see followDeviceToken)
                 log(Level.WARN, LOG_TAG, "Cannot get the FCM token, the session keeps the one registered, if any")
                 return
             }
@@ -135,7 +129,6 @@ internal class CrispNotificationSync(
             null
         }
         applyPlan(config, bridge, sessionId, deviceToken)
-        promptIfNeeded(config, bridge, sessionId)
     }
 
     /**
@@ -170,7 +163,10 @@ internal class CrispNotificationSync(
         deviceToken: String?,
     ) {
         // Within the update, not to overwrite a change made meanwhile from another thread,
-        // e.g. CrispNotifications.setEnabled or CrispSessionController.Session.reset
+        // e.g. CrispNotifications.setEnabled or CrispSessionController.Session.reset.
+        // Recorded before the calls, the calls being best effort (unacknowledged),
+        // and registered again on the next load.
+        // So even if they fail, the record mirrors the session joined.
         lateinit var plan: CrispNotificationPlan
         store.update(config.websiteId) { record ->
             CrispNotificationPolicy.onSessionLoaded(record, sessionId, config.tokenId, deviceToken)
@@ -295,18 +291,19 @@ internal class CrispNotificationSync(
     // region Prompt
 
     /**
-     * Shows a message prompting the user to enable notifications, as the iOS SDK does, once the user sent a
-     * message, if notifications are enabled for the website but not allowed by the user yet, and the user did not
-     * answer it on this session.
+     * Shows a message prompting the user to enable notifications, as the iOS SDK and SDK 2.x do,
+     * if notifications are enabled for the website but not allowed by the user yet,
+     * and the user did not answer it on this session: below the identity request of the Web client,
+     * or standalone once the user sent a message, see [CrispNotificationPrompt] (told of the messages sent).
      *
      * Only from Android 13, where notifications need the `POST_NOTIFICATIONS` runtime permission.
+     *
+     * Runs as long as the page, until shown or not needed anymore,
+     * checking the page every [CrispNotificationPrompt.POLLING] while its session is joined.
      */
-    suspend fun promptIfNeeded(config: CrispConfig, bridge: CrispClientBridge, sessionId: String) {
+    suspend fun promptWhenNeeded(config: CrispConfig, bridge: CrispClientBridge, prompt: CrispNotificationPrompt) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val record = store.record(config.websiteId)
-        val session = record.session?.takeIf { it.sessionId == sessionId } ?: return
-        if (!record.enabled || session.promptAnswered || session.revoked) return
-        if (!CrispFirebase.isAvailable(context) || isPermissionGranted()) return
+        if (!CrispFirebase.isAvailable(context)) return
         if (!isPermissionDeclared()) {
             if (isUndeclaredLogged.compareAndSet(false, true)) {
                 log(
@@ -318,36 +315,40 @@ internal class CrispNotificationSync(
             }
             return
         }
-        var messages = bridge.getMessages()
-        if (messages.any { it.fingerprint == LocalMessageFingerprint.Remote(PROMPT_FINGERPRINT) }) return
-        if (messages.none { it.from == MessageSender.USER }) return
-        // The identity prompt of the Web client starts with the same "reply" header as a standalone prompt,
-        // so it is only added without it. Shown a moment after the message sent, so it is waited for
-        if (messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT }) {
-            messages = awaitIdentityPrompt(bridge)
-            // Allowed or prompted meanwhile
-            if (isPermissionGranted()) return
-            if (messages.any { it.fingerprint == LocalMessageFingerprint.Remote(PROMPT_FINGERPRINT) }) return
+        while (true) {
+            // Not while disconnected, e.g. in background
+            val sessionId = awaitJoined()
+            val session = promptableSession(config, sessionId) ?: return
+            val decision = prompt.decide(bridge.getIdentityPromptState(PROMPT_FINGERPRINT), session.promptShown)
+            if (decision == CrispNotificationPrompt.Decision.WAIT) {
+                delay(CrispNotificationPrompt.POLLING)
+                continue
+            }
+            if (decision != CrispNotificationPrompt.Decision.DONE) {
+                val isStandalone = decision == CrispNotificationPrompt.Decision.SHOW_STANDALONE
+                log(
+                    Level.DEBUG,
+                    LOG_TAG,
+                    "Prompting to enable notifications on session ${sessionId.short()}, standalone $isStandalone",
+                )
+                bridge.injectMessage(promptMessage(isStandalone))
+                // Shown again on the next loads until answered
+                store.update(config.websiteId) { record ->
+                    val shown = record.session?.takeIf { it.sessionId == sessionId } ?: return@update record
+                    record.copy(session = shown.copy(promptShown = true))
+                }
+            }
+            return
         }
-        val isStandalone = messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT }
-        log(Level.DEBUG, LOG_TAG, "Prompting to enable notifications on session ${sessionId.short()}, standalone $isStandalone")
-        bridge.injectMessage(promptMessage(isStandalone))
     }
 
-    /**
-     * The messages once the identity prompt of the Web client is shown, or after [IDENTITY_PROMPT_DELAY] if not
-     * (e.g. disabled, or the user email or phone is known).
+    /** The recorded session of the joined [sessionId] if the prompt can be shown,
+     * not answered and not allowed yet.
      */
-    private suspend fun awaitIdentityPrompt(bridge: CrispClientBridge): List<LocalMessage> {
-        log(Level.DEBUG, LOG_TAG, "Waiting up to $IDENTITY_PROMPT_DELAY for the identity prompt of the Web client")
-        return withTimeoutOrNull(IDENTITY_PROMPT_DELAY) {
-            var messages: List<LocalMessage>
-            do {
-                delay(IDENTITY_PROMPT_POLLING)
-                messages = bridge.getMessages()
-            } while (messages.none { it.fingerprint == IDENTITY_PROMPT_FINGERPRINT })
-            messages
-        } ?: bridge.getMessages()
+    private fun promptableSession(config: CrispConfig, sessionId: String): CrispNotificationSession? {
+        val record = store.record(config.websiteId)
+        val session = record.session?.takeIf { it.sessionId == sessionId } ?: return null
+        return session.takeIf { record.enabled && !it.promptAnswered && !it.revoked && !isPermissionGranted() }
     }
 
     /**
@@ -360,7 +361,6 @@ internal class CrispNotificationSync(
      */
     suspend fun onPickerClick(
         config: CrispConfig,
-        bridge: CrispClientBridge,
         event: PickerClickEvent,
         onGranted: () -> Unit,
     ) {
@@ -419,7 +419,7 @@ internal class CrispNotificationSync(
         }
     }
 
-    @SuppressLint("InlinedApi") // Only checked from Android 13, see promptIfNeeded
+    @SuppressLint("InlinedApi") // Only checked from Android 13, see promptWhenNeeded
     private fun isPermissionDeclared(): Boolean = try {
         @Suppress("DEPRECATION")
         context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
@@ -506,22 +506,6 @@ internal class CrispNotificationSync(
 
         /** Of the injected prompt, the same as on iOS. */
         val PROMPT_FINGERPRINT = MessageFingerprint(-10006)
-
-        /** Of the identity prompt of the Web client, after which the prompt is not standalone. */
-        private val IDENTITY_PROMPT_FINGERPRINT = LocalMessageFingerprint.Local("\$identity")
-
-        /**
-         * How long the identity prompt of the Web client is waited for after a message sent.
-         *
-         * `crisp-client` shows it 5s after the first message sent by a user without email nor phone
-         * (`ui = 5e3` in `checkUserIdentity`, called by `handleSent`, in `chat-alert-*.js`),
-         * if `email_visitors` or `phone_visitors` is set, right away if `force_identify` is,
-         * or later while a bot is typing. Plus a margin for the dispatch: check it on each `crisp-client` update.
-         */
-        private val IDENTITY_PROMPT_DELAY = 6.seconds
-
-        /** Between two checks of the messages for the identity prompt of the Web client. */
-        private val IDENTITY_PROMPT_POLLING = 500.milliseconds
 
         private const val CHOICE_ENABLE = "enable"
         private const val CHOICE_SKIP = "skip"

@@ -150,11 +150,13 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
                     .takeIf { file -> file.exists() }
                     ?.readSerialized() as? String,
                 notificationId = token,
-                promptAnswered = File(dataCacheDirectory, "$NOTIFICATION_STATUS_PREFIX$it$ENTRY_KEY_SUFFIX")
-                    .takeIf { file -> file.exists() }
-                    ?.readBytes()
-                    ?.let(::isPromptAnswered) == true
             )
+        }?.let { session ->
+            val status = File(dataCacheDirectory, "$NOTIFICATION_STATUS_PREFIX${session.sessionId}$ENTRY_KEY_SUFFIX")
+                .takeIf { it.exists() }
+                ?.readBytes()
+                ?.let(::parsePromptStatus)
+            session.copy(promptAnswered = status == PROMPT_REPLIED, promptShown = status != null)
         }
         return CrispNotificationRecord(enabled = true, session = session)
     }
@@ -320,8 +322,9 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
 
         // CrispNotificationClient.PermissionStatus, Java serialized as an enum: its constant name,
         // after the class descriptor.
-        // REPLIED once the user answered the prompt, ASKED while shown, NONE otherwise
-        private val PROMPT_REPLIED = "REPLIED".toByteArray(Charsets.US_ASCII)
+        // REPLIED once the user answered the prompt, ASKED once shown (shown again until answered), NONE otherwise
+        internal const val PROMPT_REPLIED = "REPLIED"
+        internal const val PROMPT_ASKED = "ASKED"
 
         private val isCleanedUp = AtomicBoolean(false)
         private val cleanUpScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -348,11 +351,20 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
             return String(bytes, start, end - start, Charsets.US_ASCII).takeIf(SESSION_ID::matches)
         }
 
-        /** Whether [bytes], a serialized `PermissionStatus`, tells that the user answered the prompt. */
-        internal fun isPromptAnswered(bytes: ByteArray): Boolean =
-            bytes.size >= STREAM_HEADER.size &&
-                STREAM_HEADER.indices.all { bytes[it] == STREAM_HEADER[it] } &&
-                bytes.indexOf(PROMPT_REPLIED) >= 0
+        /**
+         * The status in [bytes], a serialized `PermissionStatus`, once the prompt was shown:
+         * - [PROMPT_REPLIED] once answered,
+         * - [PROMPT_ASKED] otherwise,
+         * - `null` if not shown (`NONE`) or unreadable.
+         */
+        internal fun parsePromptStatus(bytes: ByteArray): String? {
+            if (bytes.size < STREAM_HEADER.size || !STREAM_HEADER.indices.all { bytes[it] == STREAM_HEADER[it] }) {
+                return null
+            }
+            return listOf(PROMPT_REPLIED, PROMPT_ASKED).firstOrNull {
+                bytes.indexOf(it.toByteArray(Charsets.US_ASCII)) >= 0
+            }
+        }
 
         private fun ByteArray.indexOf(other: ByteArray): Int =
             (0..size - other.size).firstOrNull { start ->

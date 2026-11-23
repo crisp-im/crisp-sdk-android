@@ -46,6 +46,11 @@ internal data class CrispNotificationSession(
     val revoked: Boolean = false,
     /** Whether the user answered the in-chat prompt to enable notifications on this session. */
     val promptAnswered: Boolean = false,
+    /**
+     * Whether the in-chat prompt was shown on this session, to show it again right away until answered,
+     * as SDK 2.x did (its `ASKED` status), see [CrispNotificationPrompt].
+     */
+    val promptShown: Boolean = false,
 )
 
 /** What to do once a chatbox joined a session, see [CrispNotificationPolicy.onSessionLoaded]. */
@@ -62,6 +67,14 @@ internal data class CrispNotificationPlan(
     val unreachable: CrispNotificationSession? = null,
 )
 
+// TODO: ask the Crisp servers to make the handover and the revocation unnecessary.
+//  They only unregister a token from the session joined by the socket sending `notification:provider:unregister`,
+//  hence loading the previous session again first
+//  (an extra page load each time the `tokenId` changes, e.g. on login),
+//  the revoked sessions and the spacing of updates (CrispNotificationSpacing).
+//  Either would remove them:
+//  - an endpoint unregistering a token from a given `session_id` (e.g. authenticated by the session),
+//  - or the servers dropping a token from the other sessions of a website once registered on another one.
 /**
  * The decisions on notifications, pure so that they can be tested,
  * see [CrispNotificationSync] for when they are made.
