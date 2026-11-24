@@ -45,7 +45,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Its notification settings are [migrated][notificationRecords], then its other files, and the sessions that are
  * never restored, are [cleaned up][cleanUp].
  */
-internal class CrispLegacyStorage(private val cacheDir: File, private val filesDir: File) {
+internal class CrispLegacyStorage(
+    private val cacheDir: File,
+    private val filesDir: File,
+    // Deletes the SharedPreferences of the given name, returning whether none is left
+    private val deletePreferences: (name: String) -> Boolean = { true },
+) {
     private val dataCacheDirectory = File(cacheDir, DATA_CACHE_DIRECTORY)
 
     /**
@@ -209,7 +214,8 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
      *   then their `tokenId`, and the journal, then the whole `im.crisp.client` directory of [cacheDir]
      *   once nothing is kept,
      * - its image cache (before 2.0), in `im.crisp.client/cache/img` of [cacheDir],
-     * - the photos and videos taken to be sent (2.x), in `im.crisp.client/attachments` of [filesDir].
+     * - the photos and videos taken to be sent (2.x), in `im.crisp.client/attachments` of [filesDir],
+     * - its SharedPreferences (2.x): the version of its notification channels.
      *
      * Never deletes a session that can be restored, nor a `tokenId` before its session (if it cannot be
      * deleted, its `tokenId` is kept, so that it is still not restored), so it can run while one is being
@@ -221,14 +227,16 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
         // Found to be deleted, logged once cleaned up, and those that could not be,
         // logged to be retried
         var isFound = false
-        val notDeleted = mutableListOf<File>()
+        val notDeleted = mutableListOf<String>()
         fun delete(file: File) {
             if (!file.exists()) return
             isFound = true
-            if (!file.deleteIfExists()) notDeleted += file
+            if (!file.deleteIfExists()) notDeleted += file.name
         }
 
         try {
+            // Not told whether they existed, so not logged once deleted
+            PREFERENCES.filterNot(deletePreferences).forEach { notDeleted += it }
             delete(File(filesDir, CLIENT_DIRECTORY))
             delete(File(cacheDir, IMAGE_CACHE_DIRECTORY))
             val files = dataCacheDirectory.listFiles().orEmpty()
@@ -256,7 +264,7 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
                 Level.WARN,
                 LOG_TAG,
                 "Cannot delete files of the pre-3.x SDK, retried on next launch: " +
-                    notDeleted.joinToString { it.name }
+                    notDeleted.joinToString()
             )
         } else if (isFound) {
             log(Level.INFO, LOG_TAG, "Cleaned up files of the pre-3.x SDK")
@@ -296,6 +304,10 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
         private const val ENTRY_KEY_SUFFIX = ".0"
         private const val HEAD_SIZE = 16 * 1024
 
+        // The SharedPreferences of 2.x: Preferences (the version of the notification channels).
+        // Not those of its DebugDialogFragment, only created by debug builds of the SDK
+        private val PREFERENCES = listOf("im.crisp.client.internal.cache.Preferences")
+
         // DiskLruCache 2.0.2 keys are [a-z0-9_-]{1,64}, so other website IDs had no session saved.
         // Also prevents reading files outside of the directory.
         private val KEY = Regex("^[a-z0-9_-]{1,${64 - SESSION_ENTRY_PREFIX.length}}$")
@@ -328,7 +340,10 @@ internal class CrispLegacyStorage(private val cacheDir: File, private val filesD
         // Injected in the page, so only accept what a session ID is made of
         private val SESSION_ID = Regex("^session_[0-9A-Za-z-]{1,64}$")
 
-        fun from(context: Context) = CrispLegacyStorage(context.cacheDir, context.filesDir)
+        fun from(context: Context): CrispLegacyStorage {
+            val appContext = context.applicationContext
+            return CrispLegacyStorage(appContext.cacheDir, appContext.filesDir, appContext::deleteSharedPreferences)
+        }
 
         private fun key(websiteId: String): String? =
             websiteId.lowercase(Locale.ROOT).takeIf(KEY::matches)

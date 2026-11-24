@@ -1,12 +1,12 @@
 package im.crisp.sdk.internal.notification
 
 import android.content.Context
-import android.content.pm.PackageManager
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
 import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
 import im.crisp.sdk.internal.environment.Level
+import im.crisp.sdk.internal.environment.appMetaData
 import im.crisp.sdk.internal.environment.log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -77,14 +77,8 @@ internal object CrispFirebase {
     }
 
     /** Whether the app registers the device with its Firebase installation ID, rather than a token. */
-    fun isInstallationIdEnabled(context: Context): Boolean = try {
-        val metaData = context.packageManager
-            .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
-            .metaData
-        metaData?.containsKey(INSTALLATION_ID_ENABLED) == true && metaData.getBoolean(INSTALLATION_ID_ENABLED)
-    } catch (e: PackageManager.NameNotFoundException) {
-        false
-    }
+    fun isInstallationIdEnabled(context: Context): Boolean =
+        context.appMetaData.getBoolean(INSTALLATION_ID_ENABLED, false)
 
     /**
      * The identifier of the device to send notifications to, once [available][isAvailable],

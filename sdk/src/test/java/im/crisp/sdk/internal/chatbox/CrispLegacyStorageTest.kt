@@ -189,6 +189,14 @@ class CrispLegacyStorageTest {
         assertTrue(File(directory, "session_website.0").exists())
     }
 
+    @Test fun `cleaning up deletes the preferences of the previous SDK`() {
+        val deleted = mutableListOf<String>()
+
+        CrispLegacyStorage(cacheDir, filesDir) { deleted += it; true }.cleanUp()
+
+        assertEquals(listOf("im.crisp.client.internal.cache.Preferences"), deleted)
+    }
+
     @Test fun `cleaning up without files of the previous SDK does nothing`() {
         File(filesDir, "app.txt").writeText("x")
 

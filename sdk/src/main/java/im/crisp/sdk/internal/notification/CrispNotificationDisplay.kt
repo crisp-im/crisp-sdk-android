@@ -3,23 +3,22 @@ package im.crisp.sdk.internal.notification
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.media.AudioAttributes
 import android.net.Uri
-import android.os.Bundle
 import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import im.crisp.sdk.R
 import im.crisp.sdk.internal.environment.Level
+import im.crisp.sdk.internal.environment.appMetaData
 import im.crisp.sdk.internal.environment.log
 
 /**
@@ -278,7 +277,7 @@ internal object CrispNotificationDisplay {
 
     @DrawableRes
     private fun metaIcon(context: Context): Int =
-        metaData(context)?.getInt(FIREBASE_DEFAULT_ICON, 0)?.takeIf { it != 0 } ?: R.drawable.crisp_sdk_notification_icon
+        context.appMetaData.getInt(FIREBASE_DEFAULT_ICON, 0).takeIf { it != 0 } ?: R.drawable.crisp_sdk_notification_icon
 
     /**
      * The color of the notifications,
@@ -287,7 +286,7 @@ internal object CrispNotificationDisplay {
      * or the light Crisp blue, whatever the theme.
      */
     private fun metaColor(context: Context): Int {
-        val colorRes = metaData(context)?.getInt(FIREBASE_DEFAULT_COLOR, 0)?.takeIf { it != 0 }
+        val colorRes = context.appMetaData.getInt(FIREBASE_DEFAULT_COLOR, 0).takeIf { it != 0 }
         if (colorRes != null) {
             try {
                 return ContextCompat.getColor(context, colorRes)
@@ -316,10 +315,10 @@ internal object CrispNotificationDisplay {
      * Each as a string resource (`android:resource`), translated in the current locale, or a text (`android:value`).
      */
     private fun channelName(context: Context, websiteId: String): CharSequence? {
-        val metaData = metaData(context)
+        val metaData = context.appMetaData
         // Either type, a resource (Int) or a text, while typed getters log a warning for the other one
         @Suppress("DEPRECATION")
-        fun named(key: String): CharSequence? = when (val value = metaData?.get(key)) {
+        fun named(key: String): CharSequence? = when (val value = metaData.get(key)) {
             is Int -> try {
                 context.getText(value)
             } catch (e: Resources.NotFoundException) {
@@ -332,19 +331,22 @@ internal object CrispNotificationDisplay {
         return named("$CHANNEL_NAME_PREFIX$websiteId") ?: named(CHANNEL_NAME_DEFAULT)
     }
 
-    private fun metaData(context: Context): Bundle? = try {
-        context.packageManager.getApplicationInfo(
-            context.packageName,
-            PackageManager.GET_META_DATA
-        ).metaData
-    } catch (e: PackageManager.NameNotFoundException) {
-        null
-    }
-
     /**
      * The sound of the notifications: `res/raw/crisp_chat_message_receive` of the SDK, or of the app, which overrides
      * it by declaring its own with the same name, as for the pre-3.x SDK.
+     *
+     * By name (`android.resource://<package>/raw/<name>`), not by resource ID as the pre-3.x SDK did:
+     * a channel keeps its sound, while the IDs of the resources can change with each build of the app.
+     * The name is read from the ID, so that the resource shrinker keeps the sound.
      */
-    private fun soundUri(context: Context): Uri =
-        "android.resource://${context.packageName}/${R.raw.crisp_chat_message_receive}".toUri()
+    private fun soundUri(context: Context): Uri {
+        val resources = context.resources
+        val sound = R.raw.crisp_chat_message_receive
+        return Uri.Builder()
+            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+            .authority(context.packageName)
+            .appendPath(resources.getResourceTypeName(sound))
+            .appendPath(resources.getResourceEntryName(sound))
+            .build()
+    }
 }

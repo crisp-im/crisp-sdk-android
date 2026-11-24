@@ -6,6 +6,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.os.Bundle
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.Window
@@ -27,6 +29,24 @@ internal tailrec fun View.findDialogWindow(): Window? {
 
 internal val Context.isDebuggable: Boolean
     get() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+// The meta-data of the app, see appMetaData
+@Volatile
+private var cachedAppMetaData: Bundle? = null
+
+/**
+ * The `<meta-data>` of the `<application>` of the app (empty without any), read once per process,
+ * as it cannot change while running: updating the app kills its process.
+ *
+ * Read-only: shared by the callers.
+ */
+internal val Context.appMetaData: Bundle
+    get() = cachedAppMetaData ?: try {
+        packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA).metaData ?: Bundle.EMPTY
+    } catch (e: PackageManager.NameNotFoundException) {
+        // Never for the package of the app itself
+        Bundle.EMPTY
+    }.also { cachedAppMetaData = it }
 
 /**
  * Creates an alert dialog builder with the SDK theme,

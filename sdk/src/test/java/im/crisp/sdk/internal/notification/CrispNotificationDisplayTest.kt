@@ -91,7 +91,11 @@ class CrispNotificationDisplayTest {
         show()
 
         assertEquals(0, shown!!.defaults and Notification.DEFAULT_SOUND)
-        assertTrue(shown!!.sound.toString().startsWith("android.resource://${context.packageName}/"))
+        // By name, as a channel keeps it while resource IDs can change with each build of the app
+        assertEquals(
+            "android.resource://${context.packageName}/raw/crisp_chat_message_receive",
+            shown!!.sound.toString(),
+        )
     }
 
     @Config(sdk = [25])

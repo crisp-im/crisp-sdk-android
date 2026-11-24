@@ -245,7 +245,7 @@ Without `com.google.firebase.messaging.default_notification_color` meta-data, no
 
 ### Sessions of SDK 1.0.15+ are restored once
 
-When your users update your app, the session saved by SDK 1.0.15 and above is restored in the first chatbox loading its website, so that they find their conversation. It is then removed, so it is restored only once. Sessions saved by SDK 1.0.14 and below are never restored. Its notification settings are migrated (see Notifications below), then the other files of the previous SDK (its cache and the photos taken to be sent) are deleted.
+When your users update your app, the session saved by SDK 1.0.15 and above is restored in the first chatbox loading its website, so that they find their conversation. It is then removed, so it is restored only once. Sessions saved by SDK 1.0.14 and below are never restored. Its notification settings are migrated (see Notifications above), then the other files of the previous SDK (its cache, its preferences and the photos taken to be sent) are deleted.
 
 It is only restored for a chatbox without `tokenId`, and only if no `tokenId` was set for its website in pre-3.x SDK:
 
