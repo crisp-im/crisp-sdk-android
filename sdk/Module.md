@@ -239,6 +239,8 @@ Notification settings are migrated, websites with notifications enabled keep the
 - the FCM registration token registered by SDK 2.x stays registered on the session, as it is still the token of the device.\
   It is only unregistered if it changed (e.g. if your app switches to the Firebase installation ID, which replaces it on the session once its chatbox loads), or if the session is replaced, as for any session.
 
+SDK 2.x enabled the automatic initialization of Firebase Cloud Messaging (`FirebaseMessaging.setAutoInitEnabled(true)`), SDK 3.x does not, as it follows the settings of your app. If your app disables it (`firebase_messaging_auto_init_enabled` meta-data) and relied on SDK 2.x to enable it, enable it yourself, or token changes may not be received.
+
 Without `com.google.firebase.messaging.default_notification_color` meta-data, notifications are now Crisp blue (see the [Notifications][im.crisp.sdk.api.notification] package), rather than the color of the chatbox theme of the website.
 
 ### Sessions of SDK 1.0.15+ are restored once

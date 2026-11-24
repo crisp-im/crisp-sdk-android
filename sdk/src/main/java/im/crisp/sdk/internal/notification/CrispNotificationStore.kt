@@ -128,7 +128,12 @@ internal class CrispNotificationStore(
             log(Level.WARN, LOG_TAG, "Cannot migrate the notification settings of the pre-3.x SDK", e)
         }
         preferences.edit { putBoolean(LEGACY_MIGRATED_KEY, true) }
-        removeLegacy()
+        // Guarded too, as read by handleNotification: left files are deleted by CrispLegacyStorage.cleanUp
+        try {
+            removeLegacy()
+        } catch (e: Exception) {
+            log(Level.WARN, LOG_TAG, "Cannot delete the notification settings of the pre-3.x SDK", e)
+        }
     }
 
     /**

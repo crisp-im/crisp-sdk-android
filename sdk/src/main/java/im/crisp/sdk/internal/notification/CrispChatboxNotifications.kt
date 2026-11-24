@@ -8,6 +8,7 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.CrispClientEvent
 import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.environment.Level
+import im.crisp.sdk.internal.environment.isAppInForegroundAndOnlineNow
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import im.crisp.sdk.internal.webview.CrispClientException
@@ -24,11 +25,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The notifications of a chatbox ([CrispChatboxView][im.crisp.sdk.ui.CrispChatboxView]),
  * driving [CrispNotificationSync] along its page:
- * - [handOverIfNeeded] before loading a session, see [CrispNotificationPolicy.handoverFrom],
+ * - [unregisterBeforeReplacing] before loading another config in the page, see [CrispNotificationPolicy.handoverFrom],
+ * - [handOverIfNeeded] before loading a session, if not unregistered before,
  * - [start] once the page is ready,
  * - [beforeReset] before its session is reset,
  * - [cancel] once the page is replaced.
@@ -44,6 +47,8 @@ internal class CrispChatboxNotifications(
     private val scope: () -> CoroutineScope?,
     // How long the page may take to join its session
     private val timeout: () -> Duration,
+    // Whether the page can connect its socket: online and in foreground
+    private val canConnect: () -> Boolean = { context.isAppInForegroundAndOnlineNow() },
 ) {
     private val sync: CrispNotificationSync by lazy { CrispNotificationSync(context, store, permissionManager) }
 
@@ -96,9 +101,42 @@ internal class CrispChatboxNotifications(
     // region Handover
 
     /**
-     * Hands the device over from the previous session of the website, if its notifications are registered
-     * (see [CrispNotificationPolicy.handoverFrom]).
-     * Loads it again in [webView] before loading [config][CrispConfig] (e.g. with another `tokenId`),
+     * Before replacing the page of [bridge][CrispClientBridge] by one loading [next][CrispConfig] (another `tokenId`),
+     * unregisters the notifications of the session it joined,
+     * if they are to hand over (see [CrispNotificationPolicy.handoverFrom]),
+     * so that it is not loaded again for a handover once replaced (see [handOverIfNeeded]).
+     *
+     * The chatbox is loading meanwhile, and the events of the page replaced are not forwarded to the controller.
+     * If not unregistered within [timeout] (e.g. a page not responding), the session is left to hand over.
+     *
+     * Returns `false` if not needed, or if the page did not join that session (e.g. disconnected),
+     * so [next][CrispConfig] is loaded right away. Otherwise, [onFinished] loads it once unregistered,
+     * unless the page is replaced meanwhile.
+     */
+    fun unregisterBeforeReplacing(next: CrispConfig, bridge: CrispClientBridge, onFinished: () -> Unit): Boolean {
+        val previous = sync.handoverFrom(next) ?: return false
+        // Read before the page is started again below, which forgets them
+        if (store.sessionId.value != previous.sessionId || !store.isSocketConnected.value) return false
+        val scope = scope() ?: return false
+        log(Level.INFO, LOG_TAG, "Unregistering the notifications of the session joined before loading another one")
+        store.onPageStarted()
+        store.isHandingOver = true
+        // Never ready meanwhile, so that the controllers do not call it
+        store.holdNextReady {}
+        handoverJob = scope.launch {
+            withTimeoutOrNull(timeout()) { sync.unregisterBeforeReplacing(next, previous, bridge) }
+                ?: log(Level.WARN, LOG_TAG, "Notifications not unregistered in time, handed over once replaced")
+            // First, not to cancel this job while loading
+            handoverJob = null
+            onFinished()
+        }
+        return true
+    }
+
+    /**
+     * Hands the device over from the previous session of the website,
+     * if its notifications are registered (see [CrispNotificationPolicy.handoverFrom]).
+     * Loads it again in [webView][CrispWebView] before loading [config][CrispConfig] (e.g. with another `tokenId`),
      * to unregister them from it, as the Crisp servers only unregister them from the session joined,
      * see [CrispNotificationSync].
      *
@@ -106,18 +144,35 @@ internal class CrispChatboxNotifications(
      * The session of the pre-3.x SDK, if not saved by the Web client yet, is restored there,
      * then removed once joined, see [CrispNotificationSync.handoverConfig].
      *
-     * Best effort, not to delay each load: if the handover fails (e.g. the session is not joined in time,
-     * offline or blocked), the previous session is forgotten as unreachable, without retrying,
-     * then [onFinished] loads [config][CrispConfig] anyway, see [CrispNotificationSync.dropHandover].
+     * While it cannot connect (offline or in background), or if no session is joined in time
+     * (e.g. blocked, which also blocks the new sessions), [onFailed] fails the load, keeping the previous session
+     * to hand it over on the next load (e.g. once retried): [config][CrispConfig] could not be joined either,
+     * and once loaded, the previous session could not be reached anymore.
+     * So the previous session never prevents loading [config][CrispConfig] once a session can be joined:
+     * it is then forgotten, unregistered if joined, see [CrispNotificationSync.handOver].
      *
-     * Returns `false` if not needed, or if it cannot be made (e.g. without a bridge or if the page cannot be
-     * loaded), so [config][CrispConfig] is loaded right away. Otherwise, [onFinished] is called once handed over,
-     * unless the page is replaced meanwhile.
+     * If its page cannot be loaded, the previous session is forgotten as unreachable,
+     * see [CrispNotificationSync.dropHandover].
+     *
+     * Returns `false` if not needed, or if it cannot be made
+     * (e.g. without a bridge or if the page cannot be loaded),
+     * so [config][CrispConfig] is loaded right away.
+     * Otherwise, [onFinished] or [onFailed] is called once handed over, unless the page is replaced meanwhile.
      */
-    fun handOverIfNeeded(config: CrispConfig, webView: CrispWebView?, onFinished: () -> Unit): Boolean {
+    fun handOverIfNeeded(
+        config: CrispConfig,
+        webView: CrispWebView?,
+        onFinished: () -> Unit,
+        onFailed: (CrispClientException) -> Unit,
+    ): Boolean {
         val previous = sync.handoverFrom(config) ?: return false
         val bridge = webView?.clientBridge ?: return false
         val scope = scope() ?: return false
+        if (!canConnect()) {
+            log(Level.WARN, LOG_TAG, "Offline: cannot unregister the notifications of the previous session first")
+            onFailed(CrispClientException.Offline())
+            return true
+        }
         val handover = sync.handoverConfig(config, previous, legacyStorage::sessionId)
         log(Level.INFO, LOG_TAG, "Loading the previous session first to unregister its notifications")
         store.isHandingOver = true
@@ -132,6 +187,7 @@ internal class CrispChatboxNotifications(
             return false
         }
         handoverJob = scope.launch {
+            // `null` once failed unexpectedly, the previous session being forgotten
             val isJoined = try {
                 sync.handOver(config, previous, bridge, timeout())
             } catch (e: CancellationException) {
@@ -141,13 +197,17 @@ internal class CrispChatboxNotifications(
                 sync.dropHandover(config, previous)
                 // Replaced by another page, which loads on its own
                 if (e is JSEvaluationException.PageUnloaded) return@launch
-                false
+                null
             }
             // Saved by the Web client once joined, so restored from its storage from now on
-            if (isJoined && handover.sessionId != null) legacyStorage.remove(config.websiteId)
+            if (isJoined == true && handover.sessionId != null) legacyStorage.remove(config.websiteId)
             // First, not to cancel this job while loading
             handoverJob = null
-            onFinished()
+            if (isJoined == false) {
+                onFailed(if (canConnect()) CrispClientException.LoadingTimeout() else CrispClientException.Offline())
+            } else {
+                onFinished()
+            }
         }
         return true
     }

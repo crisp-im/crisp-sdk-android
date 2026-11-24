@@ -62,6 +62,20 @@ private fun Context.isOnline(): Flow<Boolean> = callbackFlow {
     awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
 }.distinctUntilChanged()
 
+/**
+ * Whether the app is in foreground and online right now, as [isAppInForegroundAndOnline] tells,
+ * read once, e.g. to tell why a Web socket did not connect.
+ */
+internal fun Context.isAppInForegroundAndOnlineNow(): Boolean {
+    val inForeground = ProcessLifecycleOwner.get().lifecycle.currentState != Lifecycle.State.CREATED
+    val online = try {
+        getSystemService(ConnectivityManager::class.java)?.let { it.activeNetwork != null } ?: true
+    } catch (e: SecurityException) {
+        true
+    }
+    return inForeground && online
+}
+
 /** Whether the app is in foreground and online, i.e. a Web socket can and should be connected. */
 internal fun Context.isAppInForegroundAndOnline(): Flow<Boolean> =
     combine(isAppInForeground(), applicationContext.isOnline()) { inForeground, online ->

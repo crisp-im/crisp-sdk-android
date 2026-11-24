@@ -716,6 +716,10 @@ class CrispChatboxView @JvmOverloads constructor(
             store.onError(CrispClientException.WebsiteMissing())
         } else {
             pendingConfig = config
+            // Unregisters the notifications of the session joined by the current page there first if needed,
+            // rather than loading it again to hand them over once replaced
+            val bridge = webView?.clientBridge
+            if (bridge != null && notifications.unregisterBeforeReplacing(config, bridge) { load() }) return
             load()
         }
     }
@@ -746,7 +750,20 @@ class CrispChatboxView @JvmOverloads constructor(
         store.onPageStarted()
         cancelLoadingTimeout()
         // The session whose notifications must be unregistered first, loading it again for a moment
-        if (notifications.handOverIfNeeded(config, webView) { needsLoad = true; loadIfNeeded() }) return
+        val isHandingOver = notifications.handOverIfNeeded(
+            config,
+            webView,
+            onFinished = {
+                needsLoad = true
+                loadIfNeeded()
+            },
+            // Offline: retried on the next load, e.g. from the error view
+            onFailed = { error ->
+                webView?.clear()
+                store.onError(error)
+            },
+        )
+        if (isHandingOver) return
         val mustReset = sessions.onLoad(config)
         store.holdNextReady { prepareSessionThenReady(config, mustReset) }
         // Not when reset, which removes it before reloading

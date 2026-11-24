@@ -237,12 +237,15 @@ internal class CrispNotificationSync(
     }
 
     /**
-     * Hands the device over from [previous]: once the page loading it again joins its session, unregisters its
-     * token there, then forgets it.
+     * Hands the device over from [previous][CrispNotificationSession].
+     * Once the page loading it again joins its session, unregisters its token there, then forgets it.
      * If the page joined another session, [previous] cannot be reached anymore, so it is forgotten too.
+     * That is also the case of an unknown `sessionId` injected (e.g. of the pre-3.x SDK):
+     * the servers do not join it, and the Web client creates another session right away.
      *
-     * Best effort: if the session is not joined within [timeout] (e.g. offline, or blocked), [previous] is
-     * forgotten too, as unreachable (see [dropHandover]), rather than retried, which would delay each load.
+     * If no session is joined within [timeout], [previous] is kept, to hand it over on the next load:
+     * the page cannot join any session (e.g. offline, in background, or blocked, which also blocks the new sessions,
+     * whatever their `tokenId`), so the session loaded next could not be joined either.
      *
      * Returns whether the page joined a session.
      */
@@ -254,8 +257,7 @@ internal class CrispNotificationSync(
     ): Boolean {
         val sessionId = withTimeoutOrNull(timeout) { awaitJoined() }
         if (sessionId == null) {
-            log(Level.WARN, LOG_TAG, "The previous session was not joined in time to unregister its notifications")
-            dropHandover(config, previous)
+            log(Level.WARN, LOG_TAG, "No session joined in time, the previous session will be handed over on next load")
             return false
         }
         var token: String? = null
@@ -267,8 +269,25 @@ internal class CrispNotificationSync(
     }
 
     /**
-     * Forgets [previous][CrispNotificationSession] once its handover failed
-     * (e.g. not joined in time, or not loaded), as unreachable.
+     * Before replacing the page that joined [previous][CrispNotificationSession] by one loading [config][CrispConfig] (another `tokenId`),
+     * unregisters its token there, then forgets it, so that no handover is needed (see [handoverFrom]).
+     *
+     * Forgotten once the call returns, so that it is still handed over if canceled before.
+     */
+    suspend fun unregisterBeforeReplacing(
+        config: CrispConfig,
+        previous: CrispNotificationSession,
+        bridge: CrispClientBridge,
+    ) {
+        previous.notificationId?.let { unregister(bridge, previous.sessionId, it) }
+        store.update(config.websiteId) { record ->
+            CrispNotificationPolicy.onHandoverLoaded(record, previous, previous.sessionId).first
+        }
+    }
+
+    /**
+     * Forgets [previous][CrispNotificationSession] once its handover failed (e.g. its page cannot be loaded),
+     * as unreachable.
      * Its notifications are no longer shown, but its `notificationId` is left on it.
      * @see [CrispNotificationPolicy.onSessionLoaded].
      */
