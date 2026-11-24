@@ -99,7 +99,7 @@ class CrispLegacyStorageTest {
         assertFalse(File(directory, "session_website.0").exists())
     }
 
-    @Test fun `cleaning up only keeps the sessions that can be restored, and notifications`() {
+    @Test fun `cleaning up only keeps the sessions that can be restored`() {
         saveSession("website", SESSION_ID)
         saveSession("other", OTHER_SESSION_ID)
         File(directory, "token_website.0").writeBytes(serialize("token"))
@@ -118,8 +118,8 @@ class CrispLegacyStorageTest {
         sessions.cleanUp()
 
         assertEquals(
-            // Not the session with a token ID, never restored, nor its token ID
-            setOf("session_other.0") + notifications,
+            // Not the session with a token ID, never restored, nor its token ID, nor the notifications, migrated before
+            setOf("session_other.0"),
             directory.list().orEmpty().toSet()
         )
         assertNull(sessions.sessionId(CrispConfig("website")))
@@ -154,13 +154,15 @@ class CrispLegacyStorageTest {
         assertFalse(File(cacheDir, "im.crisp.client").exists())
     }
 
-    @Test fun `cleaning up keeps notifications once no session is left`() {
+    @Test fun `cleaning up migrates the notifications first, even if it fails`() {
         File(directory, "notification_token.0").writeText("x")
         File(directory, "journal").writeText("x")
+        var migrated = emptyList<String>()
 
-        sessions.cleanUp()
+        sessions.cleanUp { migrated = directory.list().orEmpty().toList(); error("failed") }
 
-        assertEquals(listOf("notification_token.0"), directory.list().orEmpty().toList())
+        assertTrue("notification_token.0" in migrated)
+        assertFalse(File(cacheDir, "im.crisp.client").exists())
     }
 
     @Test fun `files that cannot be deleted are kept for the next clean up`() {

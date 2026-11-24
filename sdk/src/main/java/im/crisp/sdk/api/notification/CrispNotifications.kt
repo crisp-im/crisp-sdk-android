@@ -138,18 +138,23 @@ object CrispNotifications {
             log(Level.WARN, LOG_TAG, "Notification not shown: it is not a valid Crisp notification")
             return false
         }
-        val record = CrispNotificationStore.get(context).record(payload.websiteId)
-        log(
-            Level.DEBUG,
-            LOG_TAG,
-            "Notification received for session …${payload.sessionId.takeLast(6)}, " +
-                "recorded …${record.session?.sessionId?.takeLast(6)}, revoked ${record.session?.revoked}",
-        )
-        if (CrispNotificationPolicy.activeSession(record, payload.sessionId) == null) {
-            log(Level.WARN, LOG_TAG, "Notification not shown: its session is not the current one of its website")
-            return false
+        // Checked and shown without any change meanwhile, so that a session reset (e.g. on logout)
+        // either prevents it, or removes it once shown
+        val isShown = CrispNotificationStore.get(context).withRecord(payload.websiteId) { record ->
+            log(
+                Level.DEBUG,
+                LOG_TAG,
+                "Notification received for session …${payload.sessionId.takeLast(6)}, " +
+                    "recorded …${record.session?.sessionId?.takeLast(6)}, revoked ${record.session?.revoked}",
+            )
+            if (CrispNotificationPolicy.activeSession(record, payload.sessionId) == null) {
+                log(Level.WARN, LOG_TAG, "Notification not shown: its session is not the current one of its website")
+                false
+            } else {
+                CrispNotificationDisplay.show(context.applicationContext, payload, backStack, opensChatbox)
+            }
         }
-        if (!CrispNotificationDisplay.show(context.applicationContext, payload, backStack, opensChatbox)) return false
+        if (!isShown) return false
         log(Level.DEBUG, LOG_TAG, "Notification shown")
         CrispNotificationListeners.instance.notifyShown(data)
         return true

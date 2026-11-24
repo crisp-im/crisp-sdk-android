@@ -11,6 +11,7 @@ import im.crisp.sdk.R
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.PickerClickEvent
+import im.crisp.sdk.internal.bridge.js.JSEvaluationException
 import im.crisp.sdk.internal.bridge.types.ConversationMessageContent
 import im.crisp.sdk.internal.bridge.types.GenericMessage
 import im.crisp.sdk.internal.bridge.types.Message
@@ -27,6 +28,7 @@ import im.crisp.sdk.internal.permission.CrispPermissionManager
 import kotlin.time.Duration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -62,12 +64,30 @@ internal class CrispNotificationSync(
     // The FID or FCM token of the device
     private val fetchToken: suspend () -> String? = { CrispFirebase.fetchToken(context) },
     private val spacing: CrispNotificationSpacing = CrispNotificationSpacing.instance,
+    // Removes the notification shown for a website
+    private val cancelShown: (websiteId: String) -> Unit = { CrispNotificationDisplay.cancel(context, it) },
 ) {
     /**
      * Whether the app can show notifications: Firebase set up and notifications allowed by the user,
      * e.g. to register the token again once allowed outside of the chatbox.
      */
     fun canShow(): Boolean = canShowNotifications()
+
+    /**
+     * Whether notifications are enabled for the website of [config][CrispConfig], and its changes.
+     * @see [CrispNotificationStore.enabledChanges]
+     */
+    fun enabledChanges(config: CrispConfig): Flow<Boolean> = store.enabledChanges(config.websiteId)
+
+    /**
+     * Removes the notification shown for the website of [config][CrispConfig],
+     * once a chatbox shows [sessionId], if it is the recorded session, whose notifications are shown:
+     * the user reads its conversation there.
+     */
+    fun dismissShown(config: CrispConfig, sessionId: String) {
+        if (store.record(config.websiteId).session?.sessionId != sessionId) return
+        cancelShown(config.websiteId)
+    }
 
     // region Session joined
 
@@ -188,7 +208,9 @@ internal class CrispNotificationSync(
     }
 
     /**
-     * Before the page resets its session, unregisters the token registered on it, if any.
+     * Before the page resets its session, unregisters the token registered on it, if any, then forgets it.
+     * Kept if the page is replaced meanwhile ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown),
+     * for the next page to unregister it before resetting the session.
      *
      * Waits for the session to be joined, up to [timeout].
      * Once elapsed, the session is reset anyway, its token being left on it.
@@ -200,11 +222,10 @@ internal class CrispNotificationSync(
             log(Level.WARN, LOG_TAG, "Session not joined in time, reset without unregistering its FCM token")
             return
         }
-        var notificationId: String? = null
-        store.update(config.websiteId) { record ->
-            CrispNotificationPolicy.onBeforeReset(record, sessionId).also { notificationId = it.second }.first
-        }
-        notificationId?.let { unregister(bridge, sessionId, it) }
+        // Forgotten once unregistered, so that it is unregistered by the next page if this one is replaced before
+        CrispNotificationPolicy.onBeforeReset(store.record(config.websiteId), sessionId).second
+            ?.let { unregister(bridge, sessionId, it) }
+        store.update(config.websiteId) { record -> CrispNotificationPolicy.onBeforeReset(record, sessionId).first }
     }
 
     // endregion
@@ -247,6 +268,9 @@ internal class CrispNotificationSync(
      * the page cannot join any session (e.g. offline, in background, or blocked, which also blocks the new sessions,
      * whatever their `tokenId`), so the session loaded next could not be joined either.
      *
+     * Kept too if the page is replaced meanwhile
+     * ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown).
+     *
      * Returns whether the page joined a session.
      */
     suspend fun handOver(
@@ -260,11 +284,12 @@ internal class CrispNotificationSync(
             log(Level.WARN, LOG_TAG, "No session joined in time, the previous session will be handed over on next load")
             return false
         }
-        var token: String? = null
-        store.update(config.websiteId) { record ->
-            CrispNotificationPolicy.onHandoverLoaded(record, previous, sessionId).also { token = it.second }.first
-        }
+        // Forgotten once unregistered, so that it is handed over again if the page is replaced before
+        val token = CrispNotificationPolicy.onHandoverLoaded(store.record(config.websiteId), previous, sessionId).second
         token?.let { unregister(bridge, sessionId, it) } ?: logUnreachable()
+        store.update(config.websiteId) { record ->
+            CrispNotificationPolicy.onHandoverLoaded(record, previous, sessionId).first
+        }
         return true
     }
 
@@ -272,7 +297,8 @@ internal class CrispNotificationSync(
      * Before replacing the page that joined [previous][CrispNotificationSession] by one loading [config][CrispConfig] (another `tokenId`),
      * unregisters its token there, then forgets it, so that no handover is needed (see [handoverFrom]).
      *
-     * Forgotten once the call returns, so that it is still handed over if canceled before.
+     * Forgotten once the call returns, so that it is still handed over if canceled or if the page is unloaded before
+     * ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown).
      */
     suspend fun unregisterBeforeReplacing(
         config: CrispConfig,
@@ -498,7 +524,8 @@ internal class CrispNotificationSync(
                 "FID or FCM token ${notificationId.short()} registered on session ${sessionId.short()}",
             )
         } catch (e: Exception) {
-            if (e is CancellationException) throw e
+            // Replaced by another page: the caller handles it, e.g. not to forget the token
+            if (e is CancellationException || e is JSEvaluationException.PageUnloaded) throw e
             log(Level.WARN, LOG_TAG, "Cannot register the FID or FCM token", e)
         }
     }
@@ -513,7 +540,8 @@ internal class CrispNotificationSync(
                 "FID or FCM token ${notificationId.short()} unregistered from session ${sessionId.short()}",
             )
         } catch (e: Exception) {
-            if (e is CancellationException) throw e
+            // Replaced by another page: the caller handles it, e.g. not to forget the token
+            if (e is CancellationException || e is JSEvaluationException.PageUnloaded) throw e
             log(Level.WARN, LOG_TAG, "Cannot unregister the FID or FCM token", e)
         }
     }

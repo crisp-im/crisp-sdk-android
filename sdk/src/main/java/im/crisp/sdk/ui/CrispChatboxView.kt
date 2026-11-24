@@ -331,6 +331,7 @@ class CrispChatboxView @JvmOverloads constructor(
         if (!isChatOpened && isAttachedToWindow && isStarted()) {
             isChatOpened = true
             controller.notifyChatOpened()
+            notifications.onChatOpened(true)
         }
         true
     }
@@ -357,6 +358,7 @@ class CrispChatboxView @JvmOverloads constructor(
             if (isChatOpened) {
                 isChatOpened = false
                 controller.notifyChatClosed()
+                notifications.onChatOpened(false)
             }
         }
     }

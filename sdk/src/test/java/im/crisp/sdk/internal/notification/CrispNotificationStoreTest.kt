@@ -5,7 +5,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class CrispNotificationStoreTest {
     private val preferences = FakeSharedPreferences()
@@ -115,5 +123,49 @@ class CrispNotificationStoreTest {
         store.update("website") { CrispNotificationPolicy.onSessionLoaded(it, "session_b", null, null).record }
 
         assertEquals(listOf("website", "website", "website"), inactive)
+    }
+
+    @Test fun `a record is not changed while used, so that a notification shown is removed once inactive`() {
+        legacy = emptyMap()
+        val events = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val store = CrispNotificationStore(preferences, onInactive = { events += "removed" })
+        store.update("website") { CrispNotificationRecord(enabled = true, session = session) }
+        val checked = CrispNotificationRecord(enabled = true, session = session)
+        val inBlock = CountDownLatch(1)
+
+        val reset = thread(start = false) {
+            inBlock.await(1, TimeUnit.SECONDS)
+            // E.g. CrispSessionController.Session.reset, waiting for the notification to be shown
+            store.update("website") { CrispNotificationPolicy.revoke(it, tokenId = null) }
+        }
+        store.withRecord("website") { record ->
+            reset.start()
+            inBlock.countDown()
+            // Not revoked meanwhile, as the reset waits
+            Thread.sleep(100)
+            assertEquals(checked, record)
+            assertEquals(checked, store.record("website"))
+            events += "shown"
+        }
+        reset.join(1000)
+
+        assertEquals(listOf("shown", "removed"), events.toList())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun `only the changes of the enabled setting of a website are emitted`() = runTest {
+        legacy = emptyMap()
+        val store = store()
+        val enabled = mutableListOf<Boolean>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { store.enabledChanges("website").toList(enabled) }
+
+        store.update("website") { it.copy(enabled = true) }
+        // Neither another change, nor another website
+        store.update("website") { it.copy(session = session) }
+        store.update("other") { it.copy(enabled = true) }
+        store.update("website") { it.copy(enabled = false) }
+        job.cancel()
+
+        assertEquals(listOf(false, true, false), enabled)
     }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -49,8 +50,9 @@ internal class CrispChatboxNotifications(
     private val timeout: () -> Duration,
     // Whether the page can connect its socket: online and in foreground
     private val canConnect: () -> Boolean = { context.isAppInForegroundAndOnlineNow() },
+    createSync: () -> CrispNotificationSync = { CrispNotificationSync(context, store, permissionManager) },
 ) {
-    private val sync: CrispNotificationSync by lazy { CrispNotificationSync(context, store, permissionManager) }
+    private val sync: CrispNotificationSync by lazy(createSync)
 
     /** Loads the session of the notifications to unregister before the chatbox one, see [handOverIfNeeded] */
     private var handoverJob: Job? = null
@@ -66,6 +68,20 @@ internal class CrispChatboxNotifications(
      * the token is only registered once loaded otherwise.
      */
     private val notificationsAllowed = MutableStateFlow(false)
+
+    /**
+     * Whether the chat is shown to the user (see [onChatOpened]),
+     * to remove the notification of its session, read there.
+     */
+    private val isChatOpened = MutableStateFlow(false)
+
+    /**
+     * The chat is shown to the user, or not anymore.
+     * Once shown with its session joined, the notification of that session is removed, if any.
+     */
+    fun onChatOpened(isOpened: Boolean) {
+        isChatOpened.value = isOpened
+    }
 
     /** Handles the choices of the notification prompt in the page of [bridge]. */
     fun attach(bridge: CrispClientBridge) {
@@ -124,8 +140,12 @@ internal class CrispChatboxNotifications(
         // Never ready meanwhile, so that the controllers do not call it
         store.holdNextReady {}
         handoverJob = scope.launch {
-            withTimeoutOrNull(timeout()) { sync.unregisterBeforeReplacing(next, previous, bridge) }
-                ?: log(Level.WARN, LOG_TAG, "Notifications not unregistered in time, handed over once replaced")
+            try {
+                withTimeoutOrNull(timeout()) { sync.unregisterBeforeReplacing(next, previous, bridge) }
+                    ?: log(Level.WARN, LOG_TAG, "Notifications not unregistered in time, handed over once replaced")
+            } catch (e: JSEvaluationException.PageUnloaded) {
+                log(Level.WARN, LOG_TAG, "Page unloaded before unregistering the notifications, handed over once replaced")
+            }
             // First, not to cancel this job while loading
             handoverJob = null
             onFinished()
@@ -152,7 +172,7 @@ internal class CrispChatboxNotifications(
      * it is then forgotten, unregistered if joined, see [CrispNotificationSync.handOver].
      *
      * If its page cannot be loaded, the previous session is forgotten as unreachable,
-     * see [CrispNotificationSync.dropHandover].
+     * see [CrispNotificationSync.dropHandover]. Not if replaced meanwhile: the next page hands it over again.
      *
      * Returns `false` if not needed, or if it cannot be made
      * (e.g. without a bridge or if the page cannot be loaded),
@@ -164,9 +184,21 @@ internal class CrispChatboxNotifications(
         webView: CrispWebView?,
         onFinished: () -> Unit,
         onFailed: (CrispClientException) -> Unit,
+    ): Boolean = webView != null && handOverIfNeeded(config, webView.clientBridge, webView::load, onFinished, onFailed)
+
+    /**
+     * @see [handOverIfNeeded], loading the page of [bridge][CrispClientBridge] with [load],
+     * which throws a [CrispClientException] if it cannot.
+     */
+    internal fun handOverIfNeeded(
+        config: CrispConfig,
+        bridge: CrispClientBridge?,
+        load: (CrispConfig) -> Unit,
+        onFinished: () -> Unit,
+        onFailed: (CrispClientException) -> Unit,
     ): Boolean {
         val previous = sync.handoverFrom(config) ?: return false
-        val bridge = webView?.clientBridge ?: return false
+        bridge ?: return false
         val scope = scope() ?: return false
         if (!canConnect()) {
             log(Level.WARN, LOG_TAG, "Offline: cannot unregister the notifications of the previous session first")
@@ -179,7 +211,7 @@ internal class CrispChatboxNotifications(
         // Never ready meanwhile, so that the controllers do not call it
         store.holdNextReady {}
         try {
-            webView.load(handover)
+            load(handover)
         } catch (e: CrispClientException) {
             log(Level.WARN, LOG_TAG, "Cannot load the previous session to unregister its notifications", e)
             store.isHandingOver = false
@@ -192,11 +224,13 @@ internal class CrispChatboxNotifications(
                 sync.handOver(config, previous, bridge, timeout())
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: JSEvaluationException.PageUnloaded) {
+                // Replaced by another page, which loads on its own, handing the previous session over again
+                handoverJob = null
+                return@launch
             } catch (e: Exception) {
                 log(Level.WARN, LOG_TAG, "Cannot unregister the notifications of the previous session", e)
                 sync.dropHandover(config, previous)
-                // Replaced by another page, which loads on its own
-                if (e is JSEvaluationException.PageUnloaded) return@launch
                 null
             }
             // Saved by the Web client once joined, so restored from its storage from now on
@@ -222,15 +256,29 @@ internal class CrispChatboxNotifications(
      * then prompts the user to enable them, see [CrispNotificationSync.promptWhenNeeded].
      *
      * Again for each session the page joins (e.g. reset in the page, purged by an operator,
-     * see [CrispChatboxStore.sessionId]), and once notifications are allowed or blocked meanwhile
-     * (see [notificationsAllowed]), canceling what was done for the previous one.
+     * see [CrispChatboxStore.sessionId]), once notifications are allowed or blocked meanwhile
+     * (see [notificationsAllowed]), and once enabled or disabled for the website
+     * ([CrispNotifications.setEnabled][im.crisp.sdk.api.notification.CrispNotifications.setEnabled]),
+     * canceling what was done for the previous one.
+     *
+     * Also removes the notification of its session while the chat is shown, see [onChatOpened].
      */
     fun start(config: CrispConfig, bridge: CrispClientBridge) {
         val scope = scope() ?: return
         notificationJob?.cancel()
         notificationsAllowed.value = sync.canShow()
         notificationJob = scope.launch {
-            combine(store.sessionId.filterNotNull(), notificationsAllowed, ::Pair)
+            launch {
+                combine(store.sessionId.filterNotNull(), isChatOpened, ::Pair)
+                    .filter { (_, isOpened) -> isOpened }
+                    .collect { (sessionId, _) -> sync.dismissShown(config, sessionId) }
+            }
+            combine(
+                store.sessionId.filterNotNull(),
+                notificationsAllowed,
+                sync.enabledChanges(config),
+                ::Triple,
+            )
                 .distinctUntilChanged()
                 .collectLatest { syncSession(config, bridge) }
         }

@@ -6,9 +6,13 @@ import androidx.core.content.edit
 import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.util.Locale
@@ -50,6 +54,24 @@ internal class CrispNotificationStore(
         }
     }
 
+    /**
+     * Runs [block] with the record of [websiteId], without any change meanwhile,
+     * e.g. to show a notification only while its session is active,
+     * so that it is removed if no longer active (see [onInactive]).
+     */
+    @Synchronized
+    fun <T> withRecord(websiteId: String, block: (CrispNotificationRecord) -> T): T = block(record(websiteId))
+
+    /**
+     * Whether notifications are enabled for [websiteId], and its changes,
+     * e.g. for the chatboxes loaded to register or unregister the device right away.
+     */
+    fun enabledChanges(websiteId: String): Flow<Boolean> =
+        revision.map { record(websiteId).enabled }.distinctUntilChanged()
+
+    // Incremented on each write, see enabledChanges
+    private val revision = MutableStateFlow(0L)
+
     /** Saves the record of [websiteId] transformed by [transform], returning it. */
     @Synchronized
     fun update(
@@ -76,6 +98,7 @@ internal class CrispNotificationStore(
                 putString(key, json.encodeToString(record))
             }
         }
+        revision.update { it + 1 }
     }
 
     // endregion
@@ -136,14 +159,10 @@ internal class CrispNotificationStore(
         }
     }
 
-    /**
-     * Migrates the settings of the pre-3.x SDK if not done yet, e.g. before deleting its files,
-     * returning whether they are, so that their files left can be deleted.
-     */
+    /** Migrates the settings of the pre-3.x SDK if not done yet, e.g. before deleting its files. */
     @Synchronized
-    fun migrateLegacy(): Boolean {
+    fun migrateLegacy() {
         migrateLegacyOnce()
-        return preferences.getBoolean(LEGACY_MIGRATED_KEY, false)
     }
 
     // endregion
