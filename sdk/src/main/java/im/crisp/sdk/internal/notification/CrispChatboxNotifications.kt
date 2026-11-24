@@ -296,7 +296,7 @@ internal class CrispChatboxNotifications(
                         prompt.onMessageSent()
                     }
                 }
-                sync.onPageLoaded(config, bridge, timeout())
+                sync.onPageLoaded(config, bridge)
                 launch { sync.followDeviceToken(config, bridge) }
                 sync.promptWhenNeeded(config, bridge, prompt)
                 messagesSent.cancel()

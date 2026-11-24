@@ -617,7 +617,11 @@ class CrispChatboxView @JvmOverloads constructor(
                     store.state,
                     beforeReset = {
                         store.config.value?.let { config -> beforeResetSession(config, it) }
-                    }
+                    },
+                    // Still ready with the session not reset: registers its notifications again
+                    onResetFailed = {
+                        store.config.value?.let { config -> notifications.start(config, it) }
+                    },
                 ) { load() }
             )
             notifications.attach(it)
@@ -901,8 +905,9 @@ class CrispChatboxView @JvmOverloads constructor(
     }
 
     /**
-     * Before resetting the session of [config][CrispConfig] loaded in the page of [bridge]: stops registering its
-     * notifications, then unregisters them, and stops restoring its pre-3.x session, see [forgetLegacySession].
+     * Before resetting the session of [config][CrispConfig] loaded in the page of [bridge],
+     * stops registering its notifications, then unregisters them,
+     * and stops restoring its pre-3.x session, see [forgetLegacySession].
      */
     private suspend fun beforeResetSession(config: CrispConfig, bridge: CrispClientBridge) {
         forgetLegacySession(config.websiteId)

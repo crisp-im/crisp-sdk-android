@@ -40,12 +40,14 @@
     ></crisp-widget>
 
     <script>
-      // Native bridge, see WebViewBridge. Events are fire-and-forget: { kind, channel, body }.
+      // Native bridge, see WebViewBridge. Events are fire-and-forget: { kind, page, channel, body },
+      // tagged with this page, so that those still sent once it is replaced are dropped.
       function sendEvent(eventType, payload) {
         try {
           CrispNative.postMessage(
             JSON.stringify({
               kind: 'event',
+              page: '{{PAGE_ID}}',
               channel: eventType,
               body: JSON.stringify(payload || {}),
             })

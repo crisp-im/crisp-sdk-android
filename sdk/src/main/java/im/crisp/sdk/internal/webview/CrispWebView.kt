@@ -172,6 +172,9 @@ internal class CrispWebView @JvmOverloads constructor(
     @Throws(CrispClientException::class)
     fun load(config: CrispConfig) {
         webViewBridge?.rejectPendingCalls()
+        // The events of the current page are dropped from now on,
+        // even if the next one cannot be loaded
+        webViewBridge?.endPage()
         checkWebViewSupport()
 
         val assetsUrl = try {
@@ -180,7 +183,7 @@ internal class CrispWebView @JvmOverloads constructor(
             throw CrispClientException.AssetsMissing(e)
         }
 
-        val htmlContent = loadIndexHtml(config, assetsUrl)
+        val htmlContent = loadIndexHtml(config, assetsUrl, pageId = webViewBridge?.startPage().orEmpty())
         val baseUrl = "$assetsUrl/index.html"
         crispWebViewClient.baseUrl = baseUrl
 
@@ -194,7 +197,7 @@ internal class CrispWebView @JvmOverloads constructor(
     }
 
     @Throws(CrispClientException.HtmlMissing::class)
-    private fun loadIndexHtml(config: CrispConfig, assetsUrl: String): String {
+    private fun loadIndexHtml(config: CrispConfig, assetsUrl: String, pageId: String): String {
         val index = try {
             context.assets.open(CrispClient.CRISP_CLIENT_PATH + "/index.html").use { inputStream ->
                 BufferedReader(InputStreamReader(inputStream)).readText()
@@ -212,6 +215,7 @@ internal class CrispWebView @JvmOverloads constructor(
             .replace("{{MOBILE_SDK_ENABLED}}", "true")
             .replace("{{CRISP_CLIENT_JS}}", CrispClient.generatedJS())
             .replace("{{ASSETS_URL}}", assetsUrl)
+            .replace("{{PAGE_ID}}", pageId)
     }
 
     /**
@@ -232,6 +236,7 @@ internal class CrispWebView @JvmOverloads constructor(
 
     fun clear() {
         webViewBridge?.rejectPendingCalls()
+        webViewBridge?.endPage()
         stopLoading()
         loadUrl("about:blank")
     }

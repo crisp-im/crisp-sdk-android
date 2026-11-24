@@ -45,6 +45,9 @@ internal class CrispControllerDispatcher(
         // Run before resetting its session, e.g. not to restore the one it was loaded with again,
         // or to unregister its notifications
         val beforeReset: suspend () -> Unit = {},
+        // Run once its session could not be reset, the page staying ready with it,
+        // e.g. to restart what beforeReset stopped (its notifications)
+        val onResetFailed: () -> Unit = {},
         // Reloads the chatbox, e.g. to start a new session once reset
         val reload: () -> Unit
     )
@@ -201,6 +204,7 @@ internal class CrispControllerDispatcher(
                 // Reset by the next page, before it becomes ready
                 false
             } catch (e: Exception) {
+                chatbox.onResetFailed()
                 throw IllegalStateException("Cannot reset the session", e)
             }
         }

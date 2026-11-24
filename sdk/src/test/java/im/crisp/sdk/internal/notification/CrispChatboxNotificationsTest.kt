@@ -71,6 +71,7 @@ class CrispChatboxNotificationsTest {
                 store,
                 canShowNotifications = { canShow },
                 fetchToken = { fetches++; "fcm_1" },
+                fetchScope = { backgroundScope },
                 spacing = CrispNotificationSpacing(),
                 cancelShown = { dismissed += it },
             )
