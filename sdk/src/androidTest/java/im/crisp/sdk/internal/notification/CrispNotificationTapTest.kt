@@ -19,7 +19,6 @@ import androidx.test.uiautomator.Until
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -257,7 +256,10 @@ class CrispNotificationTapTest {
     /** Shows a notification, then taps it in the shade (or its heads-up), waiting for the chatbox to open. */
     private fun tapNotification() {
         val title = "Crisp test ${SystemClock.uptimeMillis()}"
-        assertTrue(CrispNotificationDisplay.show(context, CrispNotificationPayload(WEBSITE_ID, SESSION_ID, title, "Hello"), null, true))
+        val payload = CrispNotificationPayload(WEBSITE_ID, SESSION_ID, title, "Hello")
+        val built = CrispNotificationDisplay.buildNotification(context, payload, null, true)
+        assertNotNull("The notification cannot be shown", built)
+        CrispNotificationDisplay.notify(context, WEBSITE_ID, built!!)
         device.openNotification()
         val notification = device.wait(Until.findObject(By.text(title)), TIMEOUT_MS)
         assertNotNull("The notification is not in the shade", notification)

@@ -44,8 +44,12 @@ class CrispNotificationDisplayTest {
         )
     }
 
-    private fun show(backStack: TaskStackBuilder? = null, opensChatbox: Boolean = true): Boolean =
-        CrispNotificationDisplay.show(context, payload, backStack, opensChatbox)
+    private fun show(backStack: TaskStackBuilder? = null, opensChatbox: Boolean = true): Boolean {
+        val notification = CrispNotificationDisplay.buildNotification(context, payload, backStack, opensChatbox)
+            ?: return false
+        CrispNotificationDisplay.notify(context, payload.websiteId, notification)
+        return true
+    }
 
     private val shown: Notification?
         get() = shadowManager.getNotification("website", 0)
@@ -81,7 +85,6 @@ class CrispNotificationDisplayTest {
         assertEquals(1, shadowManager.allNotifications.size)
         assertEquals("[…]\nHello", shown!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
     }
-
     // Before Android 8, which has no channel to set the sound
     @Config(sdk = [25])
     @Test fun `the Crisp sound is set without the default one, which would replace it before Android 8`() {

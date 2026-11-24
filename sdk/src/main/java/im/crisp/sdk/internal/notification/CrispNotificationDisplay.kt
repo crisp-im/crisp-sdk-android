@@ -100,20 +100,20 @@ internal object CrispNotificationDisplay {
     }
 
     /**
-     * Shows [payload], opening the chatbox when tapped if [opensChatbox], see [pendingIntent].
+     * The notification of [payload], opening the chatbox when tapped if [opensChatbox] (see [pendingIntent]),
+     * to [notify], or `null` if it cannot be shown: not allowed by the user, or its channel turned off.
      *
-     * Returns whether it is shown.
+     * Creates its channel if needed, see [createChannel].
      */
-    @SuppressLint("MissingPermission") // Checked by areEnabled
-    fun show(
+    fun buildNotification(
         context: Context,
         payload: CrispNotificationPayload,
         backStack: TaskStackBuilder?,
         opensChatbox: Boolean,
-    ): Boolean {
+    ): Notification? {
         if (!areEnabled(context)) {
             log(Level.WARN, LOG_TAG, "Notification not shown: notifications are disabled or not allowed by the user")
-            return false
+            return null
         }
         val channelId = createChannel(context, payload.websiteId)
         val manager = NotificationManagerCompat.from(context)
@@ -121,12 +121,12 @@ internal object CrispNotificationDisplay {
         // Before Android 8, no channel
         if (manager.getNotificationChannelCompat(channelId)?.importance == NotificationManagerCompat.IMPORTANCE_NONE) {
             log(Level.WARN, LOG_TAG, "Notification not shown: its channel is turned off by the user")
-            return false
+            return null
         }
         val hasActive = manager.activeNotifications.any { it.tag == payload.websiteId }
         val body = if (hasActive) "$ELLIPSIS\n${payload.body.orEmpty()}" else payload.body
         val color = metaColor(context)
-        val notification = NotificationCompat.Builder(context, channelId)
+        return NotificationCompat.Builder(context, channelId)
             .setSmallIcon(metaIcon(context))
             .setColor(color)
             .setContentTitle(payload.title)
@@ -145,8 +145,15 @@ internal object CrispNotificationDisplay {
             // Not DEFAULT_SOUND nor DEFAULT_LIGHTS: Android would use its defaults instead of these, whatever the order
             .setDefaults(Notification.DEFAULT_VIBRATE)
             .build()
-        manager.notify(payload.websiteId, NOTIFICATION_ID, notification)
-        return true
+    }
+
+    /**
+     * Shows [notification] for [websiteId], built by [buildNotification],
+     * replacing the one shown for it, if any.
+     */
+    @SuppressLint("MissingPermission") // Checked by buildNotification
+    fun notify(context: Context, websiteId: String, notification: Notification) {
+        NotificationManagerCompat.from(context).notify(websiteId, NOTIFICATION_ID, notification)
     }
 
     /**

@@ -66,11 +66,17 @@ internal class CrispNotificationStore(
      * Whether notifications are enabled for [websiteId], and its changes,
      * e.g. for the chatboxes loaded to register or unregister the device right away.
      */
-    fun enabledChanges(websiteId: String): Flow<Boolean> =
-        revision.map { record(websiteId).enabled }.distinctUntilChanged()
+    fun enabledChanges(websiteId: String): Flow<Boolean> {
+        val key = recordKey(websiteId)
+        // Only read again once the record of the website is written, not on the writes of the others
+        return revisions.map { it[key] }
+            .distinctUntilChanged()
+            .map { record(websiteId).enabled }
+            .distinctUntilChanged()
+    }
 
-    // Incremented on each write, see enabledChanges
-    private val revision = MutableStateFlow(0L)
+    // The revision of each record, by key, incremented on each write, see enabledChanges
+    private val revisions = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     /** Saves the record of [websiteId] transformed by [transform], returning it. */
     @Synchronized
@@ -98,7 +104,7 @@ internal class CrispNotificationStore(
                 putString(key, json.encodeToString(record))
             }
         }
-        revision.update { it + 1 }
+        revisions.update { it + (key to (it[key] ?: 0L) + 1) }
     }
 
     // endregion

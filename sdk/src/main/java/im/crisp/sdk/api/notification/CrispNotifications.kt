@@ -138,8 +138,12 @@ object CrispNotifications {
             log(Level.WARN, LOG_TAG, "Notification not shown: it is not a valid Crisp notification")
             return false
         }
-        // Checked and shown without any change meanwhile, so that a session reset (e.g. on logout)
-        // either prevents it, or removes it once shown
+        val appContext = context.applicationContext
+        // Built first, not to hold the lock of the store while building it (several calls to the system)
+        val notification = CrispNotificationDisplay.buildNotification(appContext, payload, backStack, opensChatbox)
+            ?: return false
+        // Checked and shown without any change meanwhile,
+        // so that a session reset (e.g. on logout) either prevents it, or removes it once shown
         val isShown = CrispNotificationStore.get(context).withRecord(payload.websiteId) { record ->
             log(
                 Level.DEBUG,
@@ -151,7 +155,8 @@ object CrispNotifications {
                 log(Level.WARN, LOG_TAG, "Notification not shown: its session is not the current one of its website")
                 false
             } else {
-                CrispNotificationDisplay.show(context.applicationContext, payload, backStack, opensChatbox)
+                CrispNotificationDisplay.notify(appContext, payload.websiteId, notification)
+                true
             }
         }
         if (!isShown) return false
