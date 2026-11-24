@@ -293,14 +293,26 @@ internal class CrispPermissionManager(private val context: Context) {
         }
     }
 
-    private fun launchAppSettings() {
+    /**
+     * Opens the settings of the app, where the user grants the permissions of [intent],
+     * or its notification settings for [CrispPermissionIntent.NOTIFICATIONS] (from Android 8),
+     * where turning them on grants the permission.
+     */
+    private fun launchAppSettings(intent: CrispPermissionIntent) {
         val launcher = appSettingsLauncher
         if (launcher != null) {
             runCatching {
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", context.packageName, null)
+                val settings = if (
+                    intent == CrispPermissionIntent.NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ) {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                } else {
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
                 }
-                launcher.launch(intent)
+                launcher.launch(settings)
             }.onFailure {
                 finishActiveSession()
             }
@@ -335,12 +347,13 @@ internal class CrispPermissionManager(private val context: Context) {
         session: Session,
     ) {
         dismissActiveDialog()
+        val intent = session.intent(pendingPermissions)
         activeDialog = CrispPermissionDialog.showSettingsDialog(
             activity = activity,
-            intent = session.intent(pendingPermissions),
+            intent = intent,
             onOpenSettings = {
                 activeDialog = null
-                launchAppSettings()
+                launchAppSettings(intent)
             },
             onCancel = {
                 activeDialog = null

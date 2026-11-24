@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
@@ -112,6 +115,18 @@ internal class CrispChatboxStore(
     internal fun onSocketStateChanged(isConnected: Boolean) {
         _isSocketConnected.value = isConnected
     }
+
+    /**
+     * The session joined by the page, once its socket is connected (see [sessionId]).
+     * Needed before sending to the Crisp servers, which drop what is sent before joining.
+     */
+    suspend fun awaitJoined(): String =
+        combine(sessionId, isSocketConnected) { sessionId, isConnected -> sessionId?.takeIf { isConnected } }
+            .filterNotNull()
+            .first()
+
+    /** The session loaded by the page, even while its socket is disconnected (see [sessionId]). */
+    suspend fun awaitLoaded(): String = sessionId.filterNotNull().first()
 
     // Called by WebViewClient / WebChromeClient / Bridge
     internal fun onPageStarted() {

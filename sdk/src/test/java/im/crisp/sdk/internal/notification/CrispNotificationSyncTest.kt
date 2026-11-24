@@ -6,9 +6,6 @@ import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.js.JSEventBus
 import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.FakeSharedPreferences
-import im.crisp.sdk.internal.permission.CrispPermissionManager
-import im.crisp.sdk.internal.bridge.PickerClickEvent
-import im.crisp.sdk.internal.bridge.types.PickerId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
@@ -54,7 +51,6 @@ class CrispNotificationSyncTest {
     private fun sync() = CrispNotificationSync(
         context,
         chatboxStore,
-        CrispPermissionManager(context),
         store,
         canShowNotifications = { canShow },
         fetchToken = { fetches++; delay(fetchDuration); fcmToken },
@@ -459,20 +455,6 @@ class CrispNotificationSyncTest {
 
         assertNull(store.record("website").session)
         assertNull(sync.handoverFrom(CrispConfig("website", "user_b")))
-    }
-
-    // endregion
-
-    // region Prompt
-
-    @Test fun `a choice in the prompt is handled right away, even while disconnected`() = test {
-        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
-        chatboxStore.onSessionLoaded("session_a")
-        val event = PickerClickEvent(CrispNotificationSync.PROMPT_FINGERPRINT, PickerId("notifications"), "skip")
-
-        sync.onPickerClick(config, event) {}
-
-        assertTrue(store.record("website").session?.promptAnswered == true)
     }
 
     // endregion

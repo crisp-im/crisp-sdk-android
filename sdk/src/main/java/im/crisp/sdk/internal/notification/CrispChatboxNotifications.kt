@@ -50,9 +50,15 @@ internal class CrispChatboxNotifications(
     private val timeout: () -> Duration,
     // Whether the page can connect its socket: online and in foreground
     private val canConnect: () -> Boolean = { context.isAppInForegroundAndOnlineNow() },
-    createSync: () -> CrispNotificationSync = { CrispNotificationSync(context, store, permissionManager) },
+    createSync: () -> CrispNotificationSync = { CrispNotificationSync(context, store) },
+    createPrompter: () -> CrispNotificationPrompter = { CrispNotificationPrompter(context, store, permissionManager) },
 ) {
     private val sync: CrispNotificationSync by lazy(createSync)
+
+    private val prompter: CrispNotificationPrompter by lazy(createPrompter)
+
+    /** The config of the page whose notifications are registered, see [start] */
+    private var startedConfig: CrispConfig? = null
 
     /** Loads the session of the notifications to unregister before the chatbox one, see [handOverIfNeeded] */
     private var handoverJob: Job? = null
@@ -61,8 +67,8 @@ internal class CrispChatboxNotifications(
     private var notificationJob: Job? = null
 
     /**
-     * Whether the app can show notifications, checked again once resumed,
-     * as the user can allow them outside of the chatbox,
+     * Whether the app can show the notifications of the website, checked again once resumed,
+     * as the user can allow them outside of the chatbox (or turn the channel of the website on or off),
      * e.g. in the system settings or from a permission request of the app.
      * Unlike the camera or microphone, asked when needed,
      * the token is only registered once loaded otherwise.
@@ -91,7 +97,7 @@ internal class CrispChatboxNotifications(
             scope.launch {
                 try {
                     // Registers the token now allowed
-                    sync.onPickerClick(config, event, ::checkAllowed)
+                    prompter.onPickerClick(config, event, ::checkAllowed)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -103,15 +109,22 @@ internal class CrispChatboxNotifications(
 
     /** Checks again whether notifications are allowed, registering or unregistering the token if it changed. */
     fun checkAllowed() {
-        if (notificationJob != null) notificationsAllowed.value = sync.canShow()
+        val config = startedConfig ?: return
+        notificationsAllowed.value = sync.canShow(config)
     }
 
     /** Stops what was done for the page replaced. */
     fun cancel() {
         handoverJob?.cancel()
         handoverJob = null
+        stop()
+    }
+
+    /** Stops registering the notifications of the page, see [start]. */
+    private fun stop() {
         notificationJob?.cancel()
         notificationJob = null
+        startedConfig = null
     }
 
     // region Handover
@@ -253,7 +266,7 @@ internal class CrispChatboxNotifications(
     /**
      * Once the page of [config][CrispConfig] is ready (its session reset first if requested),
      * registers the notifications of its session, or unregisters them,
-     * then prompts the user to enable them, see [CrispNotificationSync.promptWhenNeeded].
+     * then prompts the user to enable them, see [CrispNotificationPrompter.promptWhenNeeded].
      *
      * Again for each session the page joins (e.g. reset in the page, purged by an operator,
      * see [CrispChatboxStore.sessionId]), once notifications are allowed or blocked meanwhile
@@ -266,7 +279,8 @@ internal class CrispChatboxNotifications(
     fun start(config: CrispConfig, bridge: CrispClientBridge) {
         val scope = scope() ?: return
         notificationJob?.cancel()
-        notificationsAllowed.value = sync.canShow()
+        startedConfig = config
+        notificationsAllowed.value = sync.canShow(config)
         notificationJob = scope.launch {
             launch {
                 combine(store.sessionId.filterNotNull(), isChatOpened, ::Pair)
@@ -298,7 +312,7 @@ internal class CrispChatboxNotifications(
                 }
                 sync.onPageLoaded(config, bridge)
                 launch { sync.followDeviceToken(config, bridge) }
-                sync.promptWhenNeeded(config, bridge, prompt)
+                prompter.promptWhenNeeded(config, bridge, prompt)
                 messagesSent.cancel()
             }
         } catch (e: CancellationException) {
@@ -316,8 +330,7 @@ internal class CrispChatboxNotifications(
      * stops registering its notifications, then unregisters them.
      */
     suspend fun beforeReset(config: CrispConfig, bridge: CrispClientBridge) {
-        notificationJob?.cancel()
-        notificationJob = null
+        stop()
         sync.beforeReset(config, bridge, timeout())
     }
 

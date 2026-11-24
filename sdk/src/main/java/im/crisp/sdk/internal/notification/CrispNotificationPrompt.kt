@@ -6,7 +6,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * When to show the prompt to enable notifications in the chat (see [CrispNotificationSync.promptWhenNeeded]),
+ * When to show the prompt to enable notifications in the chat (see [CrispNotificationPrompter.promptWhenNeeded]),
  * from the [state][IdentityPromptState] of the page, checked again and again.
  *
  * The identity request of the Web client starts with the same "reply" header as a standalone prompt,

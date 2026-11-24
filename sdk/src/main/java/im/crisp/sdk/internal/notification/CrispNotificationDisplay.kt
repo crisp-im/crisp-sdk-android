@@ -94,6 +94,16 @@ internal object CrispNotificationDisplay {
     /** Whether the user lets the app show notifications (the `POST_NOTIFICATIONS` permission from Android 13). */
     fun areEnabled(context: Context): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
+    /**
+     * Whether the channel of [websiteId] is not turned off by the user. Android would drop its notifications silently.
+     * Also if not created yet (on the first notification), or before Android 8, which has no channel.
+     */
+    fun isChannelEnabled(context: Context, websiteId: String): Boolean =
+        NotificationManagerCompat.from(context).getNotificationChannelCompat(channelId(websiteId))?.importance !=
+            NotificationManagerCompat.IMPORTANCE_NONE
+
+    private fun channelId(websiteId: String) = "$CHANNEL_ID_PREFIX$websiteId"
+
     /** Removes the notification shown for [websiteId], if any, see [CrispNotificationStore]. */
     fun cancel(context: Context, websiteId: String) {
         NotificationManagerCompat.from(context).cancel(websiteId, NOTIFICATION_ID)
@@ -117,9 +127,7 @@ internal object CrispNotificationDisplay {
         }
         val channelId = createChannel(context, payload.websiteId)
         val manager = NotificationManagerCompat.from(context)
-        // Turned off by the user for this website: Android would drop it silently.
-        // Before Android 8, no channel
-        if (manager.getNotificationChannelCompat(channelId)?.importance == NotificationManagerCompat.IMPORTANCE_NONE) {
+        if (!isChannelEnabled(context, payload.websiteId)) {
             log(Level.WARN, LOG_TAG, "Notification not shown: its channel is turned off by the user")
             return null
         }
@@ -163,7 +171,7 @@ internal object CrispNotificationDisplay {
      * Its other settings are only set when created: the user may have changed them since, and Android keeps them.
      */
     private fun createChannel(context: Context, websiteId: String): String {
-        val channelId = "$CHANNEL_ID_PREFIX$websiteId"
+        val channelId = channelId(websiteId)
         val manager = NotificationManagerCompat.from(context)
         val channelName = channelName(context, websiteId)
         manager.getNotificationChannelCompat(channelId)?.let { existing ->

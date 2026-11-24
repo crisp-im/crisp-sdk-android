@@ -8,6 +8,7 @@ import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
@@ -92,6 +93,9 @@ internal object CrispFirebase {
      * - otherwise its FCM registration token.
      *
      * Firebase does not time out (e.g. offline), so the caller does.
+     *
+     * Never throws but to cancel, as it runs in a scope without exception handler, see
+     * [CrispNotificationSync][im.crisp.sdk.internal.notification.CrispNotificationSync.onPageLoaded].
      */
     suspend fun fetchToken(context: Context): String? = try {
         val messaging = FirebaseMessaging.getInstance()
@@ -106,8 +110,14 @@ internal object CrispFirebase {
             @Suppress("DEPRECATION") // Replaced by register(), disabled without the installation ID enabled
             messaging.token.awaitResultOrNull("get the FCM token")
         }
-    } catch (e: IllegalStateException) {
-        // Thrown by getInstance() once the default Firebase app is deleted, checked by isAvailable before
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: LinkageError) {
+        // firebase-messaging is compile-only, so its version is not enforced:
+        // e.g. register() is missing before 25.1.0, while the app enables the installation ID
+        log(Level.ERROR, LOG_TAG, "Cannot fetch the FCM token: firebase-messaging 25.1.2 or later is required", e)
+        null
+    } catch (e: Exception) {
         log(Level.WARN, LOG_TAG, "Cannot fetch the FCM token", e)
         null
     }

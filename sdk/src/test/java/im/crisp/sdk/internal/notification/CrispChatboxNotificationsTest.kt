@@ -67,7 +67,6 @@ class CrispChatboxNotificationsTest {
             CrispNotificationSync(
                 context,
                 chatboxStore,
-                CrispPermissionManager(context),
                 store,
                 canShowNotifications = { canShow },
                 fetchToken = { fetches++; "fcm_1" },
@@ -76,6 +75,7 @@ class CrispChatboxNotificationsTest {
                 cancelShown = { dismissed += it },
             )
         },
+        createPrompter = { CrispNotificationPrompter(context, chatboxStore, CrispPermissionManager(context), store) },
     )
 
     private fun joined(sessionId: String = "session_b") {

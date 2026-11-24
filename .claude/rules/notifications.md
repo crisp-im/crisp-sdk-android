@@ -9,12 +9,12 @@ paths:
 
 Checked and decided. Don't suggest changing them in reviews:
 
-- `POST_NOTIFICATIONS` is not declared by the SDK: `firebase-messaging` merges it into the app manifest. If an app removes it (`tools:node="remove"`), `CrispNotificationSync.promptWhenNeeded` logs an error and does not prompt.
+- `POST_NOTIFICATIONS` is not declared by the SDK: `firebase-messaging` merges it into the app manifest. If an app removes it (`tools:node="remove"`), `CrispNotificationPrompter.promptWhenNeeded` logs an error and does not prompt.
 - `CrispNotifications.setEnabled` is the opt-out of the in-chat prompt, as `setShouldPromptForNotificationPermission` is on iOS: no separate flag for the prompt.
 - Notifications are not suppressed while a chatbox shows their session: the Crisp servers do not send them while the session is joined.
 - The Web client does not track tokens: `registerNotification` and `unregisterNotification` only emit `notification:provider:(un)register` on the current socket, so the SDK handles everything else (sessions, resets, handover).
 - The Java overloads of `CrispNotifications.handleNotification` differ from 2.x on purpose. The documentation covers it.
-- The in-chat prompt is answered per session (`promptAnswered`), as 2.x did: it is shown again on a new session while the permission is not granted, even if the user denied it before. Don't gate it on the permission state (as iOS does with `.notDetermined`), nor add a device-wide "asked" flag.
+- The in-chat prompt is answered per session (`promptAnswered`), as 2.x did: it is shown again on a new session while the permission is not granted or the channel of the website is turned off (then "Enable" opens the notification settings of the app), even if the user denied it before. Don't gate it on the permission state (as iOS does with `.notDetermined`), nor add a device-wide "asked" flag.
 - The in-chat prompt is shown following these rules, in order (`CrispNotificationPrompt.decide`):
   1. shown before on the session (`promptShown`): right away, below the `$identity` message if shown, otherwise standalone,
   2. `$identity` message shown: right away, below it, without header,

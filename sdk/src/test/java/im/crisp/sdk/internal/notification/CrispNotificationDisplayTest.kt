@@ -124,6 +124,19 @@ class CrispNotificationDisplayTest {
         assertNull(shown)
     }
 
+    @Test fun `a channel is enabled until turned off by the user, even before created`() {
+        assertTrue(CrispNotificationDisplay.isChannelEnabled(context, "website"))
+
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder("crisp_chatbox_website", NotificationManagerCompat.IMPORTANCE_NONE)
+                .setName("Crisp")
+                .build()
+        )
+
+        assertFalse(CrispNotificationDisplay.isChannelEnabled(context, "website"))
+        assertTrue(CrispNotificationDisplay.isChannelEnabled(context, "other_website"))
+    }
+
     @Test fun `a notification is removed once cancelled`() {
         show()
 
