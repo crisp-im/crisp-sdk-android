@@ -76,7 +76,11 @@ class CrispChatboxNotificationsTest {
             )
         },
         createPrompter = { CrispNotificationPrompter(context, chatboxStore, CrispPermissionManager(context), store) },
+        createPrompt = { CrispNotificationPrompt().also { prompts += it } },
     )
+
+    // The prompt states created, one per session
+    private val prompts = mutableListOf<CrispNotificationPrompt>()
 
     private fun joined(sessionId: String = "session_b") {
         chatboxStore.onSessionLoaded(sessionId)
@@ -153,6 +157,25 @@ class CrispChatboxNotificationsTest {
         settle()
 
         assertEquals(listOf("registerNotification:fcm_1"), calls)
+    }
+
+    @Test fun `the prompt of a session is kept while synced again, not to forget a message sent`() = runTest {
+        enable()
+        canShow = false
+        val notifications = notifications()
+        notifications.start(config, bridge)
+        joined("session_a")
+        settle()
+
+        canShow = true
+        notifications.checkAllowed()
+        settle()
+        assertEquals(1, prompts.size)
+
+        // E.g. purged by an operator
+        chatboxStore.onSessionLoaded("session_b")
+        settle()
+        assertEquals(2, prompts.size)
     }
 
     @Test fun `each session joined by the page is synced`() = runTest {

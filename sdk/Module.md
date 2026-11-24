@@ -289,10 +289,10 @@ The chatbox notifies the user of the replies of your operators with [Firebase Cl
    - Go to your Firebase **Project settings**,
    - Go to the **Cloud Messaging** tab,
    - In the **Firebase Cloud Messaging API (V1)** section, copy your **Sender ID (1)**, you will need it later.
-   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-1-firebase-1" height="540" alt="Copy your Firebase Cloud Messaging Sender ID">
+   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-1-firebase-1.png" height="540" alt="Copy your Firebase Cloud Messaging Sender ID">
    - Go to the **Service accounts** tab,
    - In the **Firebase Admin SDK** section, click on the **Generate new private key (2)** button and save it for later.
-   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-2-firebase-2" height="540" alt="Generate and download your Firebase Admin private key">
+   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-2-firebase-2.png" height="540" alt="Generate and download your Firebase Admin private key">
    - Go to your [Crisp Dashboard](https://app.crisp.chat/),
    - Select your Workspace,
    - Go to **Settings > Chatbox > Push Notifications**,
@@ -301,11 +301,11 @@ The chatbox notifies the user of the replies of your operators with [Firebase Cl
       - Paste the **Sender ID** you have copied previously into the **Project ID (4)** field,
       - Select or drag your **Firebase Admin private key** file you have downloaded earlier in the **Certificate (5)** box,
       - Click on the **Verify Credentials (6)** button.
-   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-3-crisp-1" height="540" alt="Enable Push Notifications in Crisp dashboard">
+   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-3-crisp-1.png" height="540" alt="Enable Push Notifications in Crisp dashboard">
    - Crisp will notify you that it is checking FCM Credentials in order to send notifications to your users.
-   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-4-crisp-2" alt="Crisp checking FCM Credentials">
+   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-4-crisp-2.png" alt="Crisp checking FCM Credentials">
    - Finally, if FCM Credentials are valid, Crisp will update the Push Notifications status to **live**.
-   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-5-crisp-3" alt="Crisp Notifications are live">
+   <img src="https://raw.githubusercontent.com/crisp-im/crisp-sdk-android/beta/.github/notifications-5-crisp-3.png" alt="Crisp Notifications are live">
 3. Enable notifications for your website, e.g. from `Application.onCreate`:
    ```kotlin
    CrispNotifications.setEnabled(context, "YOUR_WEBSITE_ID", true)

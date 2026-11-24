@@ -358,8 +358,17 @@ class CrispNotificationSyncTest {
         sync.beforeReset(config, bridge, 5.seconds)
 
         assertTrue(calls.isEmpty())
-        // Unreachable once reset, replaced by the next session loaded
-        assertEquals(registered, store.record("website").session)
+        // Unreachable once reset, replaced by the next session loaded, its notifications not shown meanwhile
+        assertEquals(registered.copy(revoked = true), store.record("website").session)
+    }
+
+    @Test fun `a session of another tokenId is not revoked if not joined in time`() = test {
+        val other = registered.copy(tokenId = "user_b")
+        store.update("website") { CrispNotificationRecord(enabled = true, session = other) }
+
+        sync.beforeReset(config, bridge, 5.seconds)
+
+        assertEquals(other, store.record("website").session)
     }
 
     @Test fun `nothing is awaited before resetting a session without token`() = test {

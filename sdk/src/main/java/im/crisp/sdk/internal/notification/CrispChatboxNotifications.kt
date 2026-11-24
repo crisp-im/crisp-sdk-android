@@ -52,6 +52,8 @@ internal class CrispChatboxNotifications(
     private val canConnect: () -> Boolean = { context.isAppInForegroundAndOnlineNow() },
     createSync: () -> CrispNotificationSync = { CrispNotificationSync(context, store) },
     createPrompter: () -> CrispNotificationPrompter = { CrispNotificationPrompter(context, store, permissionManager) },
+    // The state of the prompt of a session, see start
+    private val createPrompt: () -> CrispNotificationPrompt = { CrispNotificationPrompt() },
 ) {
     private val sync: CrispNotificationSync by lazy(createSync)
 
@@ -282,10 +284,23 @@ internal class CrispChatboxNotifications(
         startedConfig = config
         notificationsAllowed.value = sync.canShow(config)
         notificationJob = scope.launch {
+            // The prompt of the session joined, kept while syncSession restarts for it
+            // (e.g. notifications allowed meanwhile), not to forget a message sent
+            var prompt: Pair<String, CrispNotificationPrompt>? = null
+            fun promptOf(sessionId: String): CrispNotificationPrompt =
+                prompt?.takeIf { it.first == sessionId }?.second
+                    ?: createPrompt().also { prompt = sessionId to it }
+
             launch {
                 combine(store.sessionId.filterNotNull(), isChatOpened, ::Pair)
                     .filter { (_, isOpened) -> isOpened }
                     .collect { (sessionId, _) -> sync.dismissShown(config, sessionId) }
+            }
+            // First, not to miss the messages sent while registering
+            launch {
+                store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
+                    store.sessionId.value?.let { promptOf(it).onMessageSent() }
+                }
             }
             combine(
                 store.sessionId.filterNotNull(),
@@ -294,26 +309,18 @@ internal class CrispChatboxNotifications(
                 ::Triple,
             )
                 .distinctUntilChanged()
-                .collectLatest { syncSession(config, bridge) }
+                .collectLatest { (sessionId, _, _) -> syncSession(config, bridge, promptOf(sessionId)) }
         }
     }
 
-    /** Registers or unregisters the notifications of the session joined, see [start]. */
-    private suspend fun syncSession(config: CrispConfig, bridge: CrispClientBridge) {
+    /** Registers or unregisters the notifications of the session joined, then prompts with [prompt], see [start]. */
+    private suspend fun syncSession(config: CrispConfig, bridge: CrispClientBridge, prompt: CrispNotificationPrompt) {
         try {
             // Scoped, so that their exceptions are caught below
             coroutineScope {
-                val prompt = CrispNotificationPrompt()
-                // First, not to miss the messages sent while registering
-                val messagesSent = launch {
-                    store.clientEvents.filterIsInstance<CrispClientEvent.MessageSent>().collect {
-                        prompt.onMessageSent()
-                    }
-                }
                 sync.onPageLoaded(config, bridge)
                 launch { sync.followDeviceToken(config, bridge) }
                 prompter.promptWhenNeeded(config, bridge, prompt)
-                messagesSent.cancel()
             }
         } catch (e: CancellationException) {
             throw e

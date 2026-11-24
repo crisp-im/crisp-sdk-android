@@ -115,6 +115,20 @@ internal object CrispNotificationDisplay {
      *
      * Creates its channel if needed, see [createChannel].
      */
+    // TODO: maybe NotificationCompat.MessagingStyle instead of BigTextStyle and the "[…]" prefix:
+    //  the messages of the session with their time (kept per website, or read back from the active notification
+    //  with extractMessagingStyleFromNotification), cleared once dismissed or the chat shown.
+    //  - Sender: a Person named by the title (the website name), with the default_notification_icon meta-data
+    //    as avatar (or none: Android draws its initial), a small monochrome icon that may render badly as one.
+    //  - User (required, with a non-empty name, never shown for received messages): keyed by the sessionId,
+    //    named by its nickname (CrispChatboxController.user.getNickname, saved in the record once a chatbox
+    //    loads it, as no chatbox is loaded when notified), otherwise by the websiteId (and tokenId).
+    //  - Conversation section (Android 11+): needs a long-lived sharing shortcut (ShortcutInfoCompat, a dynamic
+    //    shortcut of the app opening the chatbox) set with setShortcutId, to document or make optional.
+    //    Its intents could be those of pendingIntent (setIntents: the backStack, or the launcher Activity, then
+    //    CrispNotificationActivity), as launched with FLAG_ACTIVITY_NEW_TASK and FLAG_ACTIVITY_CLEAR_TASK,
+    //    replacing the task, but each needs an action and only persistable extras (else pushDynamicShortcut throws).
+    //    Removed once its session is reset or notifications disabled, as it outlives the notification.
     fun buildNotification(
         context: Context,
         payload: CrispNotificationPayload,
