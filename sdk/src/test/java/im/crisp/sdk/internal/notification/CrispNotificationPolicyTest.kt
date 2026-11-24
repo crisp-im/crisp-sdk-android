@@ -86,6 +86,35 @@ class CrispNotificationPolicyTest {
         assertNull(plan.register)
     }
 
+    @Test fun `the token to unregister is kept until unregistered, then replaced by the one registered`() {
+        val plan = CrispNotificationPolicy.onSessionLoaded(enabled, "session_a", "user_a", "fcm_2")
+
+        val before = CrispNotificationPolicy.beforeCalls(plan, "session_a")
+        assertEquals("fcm_1", before.session?.notificationId)
+        assertEquals(plan.record, CrispNotificationPolicy.onUnregistered(before, plan, "session_a"))
+    }
+
+    @Test fun `the token to unregister once disabled is kept until unregistered`() {
+        val plan = CrispNotificationPolicy.onSessionLoaded(enabled.copy(enabled = false), "session_a", "user_a", null)
+
+        val before = CrispNotificationPolicy.beforeCalls(plan, "session_a")
+        assertEquals("fcm_1", before.session?.notificationId)
+        assertNull(CrispNotificationPolicy.onUnregistered(before, plan, "session_a").session?.notificationId)
+    }
+
+    @Test fun `nothing to keep without token to unregister`() {
+        val plan = CrispNotificationPolicy.onSessionLoaded(enabled, "session_a", "user_a", "fcm_1")
+
+        assertEquals(plan.record, CrispNotificationPolicy.beforeCalls(plan, "session_a"))
+    }
+
+    @Test fun `a session changed while unregistering is left as is`() {
+        val plan = CrispNotificationPolicy.onSessionLoaded(enabled, "session_a", "user_a", "fcm_2")
+        val reset = CrispNotificationRecord(enabled = true)
+
+        assertSame(reset, CrispNotificationPolicy.onUnregistered(reset, plan, "session_a"))
+    }
+
     @Test fun `a revoked session is neither registered nor unregistered, until reset`() {
         val record = enabled.copy(session = registered.copy(revoked = true))
 

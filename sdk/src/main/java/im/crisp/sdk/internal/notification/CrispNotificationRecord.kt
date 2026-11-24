@@ -55,6 +55,7 @@ internal data class CrispNotificationSession(
 
 /** What to do once a chatbox joined a session, see [CrispNotificationPolicy.onSessionLoaded]. */
 internal data class CrispNotificationPlan(
+    /** The record once the calls are made, see [CrispNotificationPolicy.beforeCalls] for the one before. */
     val record: CrispNotificationRecord,
     /** The `notificationId` to unregister from the joined session first, if any. */
     val unregister: String? = null,
@@ -154,6 +155,35 @@ internal object CrispNotificationPolicy {
             register = wanted,
             unreachable = unreachable,
         )
+    }
+
+    /**
+     * The record to save before the calls of [plan][CrispNotificationPlan], made on the joined [sessionId]:
+     * the one of [plan], but still with the `notificationId` to unregister, if any,
+     * forgotten once unregistered ([onUnregistered]),
+     * so that it is unregistered again on the next load if interrupted (e.g. the page replaced or closed).
+     */
+    fun beforeCalls(plan: CrispNotificationPlan, sessionId: String): CrispNotificationRecord {
+        val unregister = plan.unregister ?: return plan.record
+        val session = plan.record.session?.takeIf { it.sessionId == sessionId } ?: return plan.record
+        return plan.record.copy(session = session.copy(notificationId = unregister))
+    }
+
+    /**
+     * Once the `notificationId` to unregister of [plan][CrispNotificationPlan] is unregistered from the joined [sessionId],
+     * the record with the one of [plan] instead (to register next, if any).
+     *
+     * Unchanged if the recorded session or its `notificationId` changed meanwhile, e.g. reset.
+     */
+    fun onUnregistered(
+        record: CrispNotificationRecord,
+        plan: CrispNotificationPlan,
+        sessionId: String,
+    ): CrispNotificationRecord {
+        val session = record.session
+            ?.takeIf { it.sessionId == sessionId && it.notificationId == plan.unregister }
+            ?: return record
+        return record.copy(session = session.copy(notificationId = plan.record.session?.notificationId))
     }
 
     /**

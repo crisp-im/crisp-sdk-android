@@ -116,6 +116,8 @@ class CrispSessionController internal constructor(
          *
          * Its [notifications][CrispNotifications] stop being shown or opening the chatbox right away,
          * and the one shown is removed.
+         * Only those of the session of this `tokenId`: on logout, reset the session of the user, with their `tokenId`,
+         * before dropping it.
          */
         fun reset() {
             if (!warnIfWebsiteMissing("session.reset")) {

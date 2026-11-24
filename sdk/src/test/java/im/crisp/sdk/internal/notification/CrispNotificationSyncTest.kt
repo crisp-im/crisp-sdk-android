@@ -126,6 +126,26 @@ class CrispNotificationSyncTest {
         assertEquals(0, fetches)
     }
 
+    @Test fun `a token not unregistered once interrupted is kept, to be unregistered on the next load`() = test {
+        store.update("website") { CrispNotificationRecord(enabled = false, session = registered) }
+        joined()
+        // Updated right before, so that unregistering waits
+        spacing.await("session_a")
+
+        val job = launch { sync.onPageLoaded(config, bridge, timeout) }
+        runCurrent()
+        // E.g. the chatbox closed while spaced
+        job.cancel()
+
+        assertTrue(calls.isEmpty())
+        assertEquals("fcm_1", store.record("website").session?.notificationId)
+
+        sync.onPageLoaded(config, bridge, timeout)
+
+        assertEquals(listOf("unregisterNotification:fcm_1"), calls.map { it.first })
+        assertNull(store.record("website").session?.notificationId)
+    }
+
     @Test fun `a migrated token replaced before the first load is updated once joined`() = test {
         // Migrated from the pre-3.x SDK, then the device token changed (or the app switched to the installation ID)
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered.copy(tokenId = null)) }

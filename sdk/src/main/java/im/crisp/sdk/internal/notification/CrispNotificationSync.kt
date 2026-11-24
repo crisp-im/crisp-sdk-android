@@ -186,12 +186,13 @@ internal class CrispNotificationSync(
         // e.g. CrispNotifications.setEnabled or CrispSessionController.Session.reset.
         // Recorded before the calls, the calls being best effort (unacknowledged),
         // and registered again on the next load.
-        // So even if they fail, the record mirrors the session joined.
+        // Except the token to unregister, kept until unregistered, so that it is unregistered again on the next
+        // load if interrupted (e.g. the page replaced or closed while spaced), rather than left on the session.
         lateinit var plan: CrispNotificationPlan
         store.update(config.websiteId) { record ->
             CrispNotificationPolicy.onSessionLoaded(record, sessionId, config.tokenId, deviceToken)
                 .also { plan = it }
-                .record
+                .let { CrispNotificationPolicy.beforeCalls(it, sessionId) }
         }
         log(
             Level.DEBUG,
@@ -200,7 +201,10 @@ internal class CrispNotificationSync(
                 "register ${plan.register?.short()}, unreachable ${plan.unreachable?.sessionId?.short()}",
         )
         plan.unreachable?.let { logUnreachable() }
-        plan.unregister?.let { unregister(bridge, sessionId, it) }
+        plan.unregister?.let {
+            unregister(bridge, sessionId, it)
+            store.update(config.websiteId) { record -> CrispNotificationPolicy.onUnregistered(record, plan, sessionId) }
+        }
         plan.register?.let {
             warnIfNoMessagingService()
             register(bridge, sessionId, it)

@@ -252,10 +252,10 @@ It is only restored for a chatbox without `tokenId`, and only if no `tokenId` wa
 - With a `tokenId`, the chatbox restores the session of the user on its own, as on the Web.
 - If a `tokenId` was still set in pre-3.x SDK, a user was logged in, so their session is not shown to whoever uses the chatbox without `tokenId`. They will find it once logged in, except a conversation started before logging in, which is not kept either on the Web (see [session continuity](https://docs.crisp.chat/guides/chatbox-sdks/web-sdk/session-continuity/)).
 
-Pre-3.x SDK did not tie a session to a `tokenId` though: unsetting it with `Crisp.setTokenID(null)` kept the session of the user, until `Crisp.resetChatSession` was called. So if your app logged users out without resetting the session, the restored session may be one of a user who was logged in. If a user is logged out when your app updates, [reset the session][im.crisp.sdk.api.controller.CrispSessionController.Session.reset] before showing the chatbox, as you would on logout:
+Pre-3.x SDK did not tie a session to a `tokenId` though: unsetting it with `Crisp.setTokenID(null)` kept the session of the user, until `Crisp.resetChatSession` was called. So if your app logged users out without resetting the session, the restored session may be one of a user who was logged in. If a user is logged out when your app updates, [reset the session][im.crisp.sdk.api.controller.CrispSessionController.Session.reset] without `tokenId` before showing the chatbox:
 
 ```kotlin
-// E.g. on logout, or once after updating if logged out
+// Once after updating if logged out
 CrispSessionController(context, CrispConfig(websiteId = "YOUR_WEBSITE_ID")).session.reset()
 ```
 
@@ -383,9 +383,14 @@ The chatbox notifies the user of the replies of your operators with [Firebase Cl
 ## Which session is notified
 
 The device is notified of the replies to the session a chatbox last loaded for each website, once it is loaded.\
-When a chatbox loads the website with another `tokenId` (e.g. another user logged in), the chatbox loads the previous session again for a moment first, to stop notifying the device of it, as Crisp only does so from the session itself. If it cannot be loaded in time (e.g. offline), its notifications are no longer shown, and the chatbox loads anyway.\
+When a chatbox loads the website with another `tokenId` (e.g. another user logged in), the chatbox loads the previous session again for a moment first, to stop notifying the device of it, as Crisp only does so from the session itself. If no session can be joined in time (e.g. offline), the chatbox shows a loading error and tries again on the next load (e.g. from its retry button) as it could not join its own session either. If the previous session cannot be loaded anymore (e.g. its storage expired or was cleared), its notifications are no longer shown, and the chatbox loads its own session.\
 So if your app shows chatboxes of the same website with different `tokenId`s (e.g. several accounts), only the session of the last one loaded is notified, and each one loading after another loads its session again for a moment first.\
 [Resetting the session][im.crisp.sdk.api.controller.CrispSessionController.Session.reset] (e.g. on logout) stops showing its notifications right away, and stops notifying the device once a chatbox loads the website again.
+On logout, reset the session of the user, with their `tokenId`, before dropping it: resetting the session without `tokenId` does not affect theirs, whose notifications keep being shown until a chatbox loads the website again.
+```kotlin
+// On logout, with the tokenId of the user logging out
+CrispSessionController(context, CrispConfig(websiteId = "YOUR_WEBSITE_ID", tokenId = userTokenId)).session.reset()
+```
 
 So a notification only opens the session it was sent for if it is still the last one of its website.\
 [configFrom][im.crisp.sdk.api.notification.CrispNotifications.configFrom] returns the `websiteId` and `tokenId` the session was loaded with, never another session, so that the conversations of a user are not shown to another one using the same device.
