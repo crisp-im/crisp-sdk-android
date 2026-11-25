@@ -8,7 +8,7 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.CrispClientEvent
 import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.environment.Level
-import im.crisp.sdk.internal.environment.isAppInForegroundAndOnlineNow
+import im.crisp.sdk.internal.environment.isOnlineNow
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import im.crisp.sdk.internal.webview.CrispClientException
@@ -48,8 +48,9 @@ internal class CrispChatboxNotifications(
     private val scope: () -> CoroutineScope?,
     // How long the page may take to join its session
     private val timeout: () -> Duration,
-    // Whether the page can connect its socket: online and in foreground
-    private val canConnect: () -> Boolean = { context.isAppInForegroundAndOnlineNow() },
+    // Whether the device is online, checked before a handover,
+    // which is only loaded while started (in foreground)
+    private val isOnline: () -> Boolean = { context.isOnlineNow() },
     createSync: () -> CrispNotificationSync = { CrispNotificationSync(context, store) },
     createPrompter: () -> CrispNotificationPrompter = { CrispNotificationPrompter(context, store, permissionManager) },
     // The state of the prompt of a session, see start
@@ -174,8 +175,8 @@ internal class CrispChatboxNotifications(
      * The session of the pre-3.x SDK, if not saved by the Web client yet, is restored there,
      * then removed once joined, see [CrispNotificationSync.handoverConfig].
      *
-     * While it cannot connect (offline or in background), or if no session is joined in time
-     * (e.g. blocked, which also blocks the new sessions), [onFailed] fails the load, keeping the previous session
+     * While offline, or if no session is joined in time (e.g. in background, or blocked,
+     * which also blocks the new sessions), [onFailed] fails the load, keeping the previous session
      * to hand it over on the next load (e.g. once retried): [config][CrispConfig] could not be joined either,
      * and once loaded, the previous session could not be reached anymore.
      * So the previous session never prevents loading [config][CrispConfig] once a session can be joined:
@@ -210,7 +211,7 @@ internal class CrispChatboxNotifications(
         val previous = sync.handoverFrom(config) ?: return false
         bridge ?: return false
         val scope = scope() ?: return false
-        if (!canConnect()) {
+        if (!isOnline()) {
             log(Level.WARN, LOG_TAG, "Offline: cannot unregister the notifications of the previous session first")
             onFailed(CrispClientException.Offline())
             return true
@@ -248,7 +249,7 @@ internal class CrispChatboxNotifications(
             // First, not to cancel this job while loading
             handoverJob = null
             if (isJoined == false) {
-                onFailed(if (canConnect()) CrispClientException.LoadingTimeout() else CrispClientException.Offline())
+                onFailed(if (isOnline()) CrispClientException.LoadingTimeout() else CrispClientException.Offline())
             } else {
                 onFinished()
             }

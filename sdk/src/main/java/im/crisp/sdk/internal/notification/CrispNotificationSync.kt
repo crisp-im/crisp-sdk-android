@@ -51,11 +51,14 @@ internal class CrispNotificationSync(
 ) {
     /**
      * Whether the app can show the notifications of the website of [config][CrispConfig]:
-     * Firebase set up, notifications allowed by the user, and the channel of the website not turned off,
+     * enabled, Firebase set up, notifications allowed by the user, and the channel of the website not turned off,
      * e.g. to register the token again once allowed outside of the chatbox.
      * Otherwise, the token is unregistered, as its notifications would be dropped.
+     *
+     * Enabled first, not to check Firebase (logging an error without it) for an app not using notifications.
      */
-    fun canShow(config: CrispConfig): Boolean = canShowNotifications(config.websiteId)
+    fun canShow(config: CrispConfig): Boolean =
+        store.record(config.websiteId).enabled && canShowNotifications(config.websiteId)
 
     /**
      * Whether notifications are enabled for the website of [config][CrispConfig], and its changes.

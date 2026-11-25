@@ -102,6 +102,19 @@ class CrispNotificationSyncTest {
         assertEquals(CrispNotificationRecord(), store.record("website"))
     }
 
+    @Test fun `Firebase is not checked for a website without notifications`() = test {
+        var checks = 0
+        val sync = CrispNotificationSync(context, chatboxStore, store, canShowNotifications = { checks++; true })
+
+        assertFalse(sync.canShow(config))
+        assertEquals(0, checks)
+
+        store.update("website") { it.copy(enabled = true) }
+
+        assertTrue(sync.canShow(config))
+        assertEquals(1, checks)
+    }
+
     @Test fun `a new token replaces the previous one, spaced not to lose an update`() = test {
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
         // Received by onNewToken while no chatbox was loaded

@@ -57,6 +57,9 @@ internal class CrispNotificationPrompter(
      */
     suspend fun promptWhenNeeded(config: CrispConfig, bridge: CrispClientBridge, prompt: CrispNotificationPrompt) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        // First, not to check Firebase nor the permission (logging errors) for an app not using notifications.
+        // Prompted again once enabled, as the sync restarts
+        if (!store.record(config.websiteId).enabled) return
         if (!CrispFirebase.isAvailable(context)) return
         if (!isPermissionDeclared()) {
             if (isUndeclaredLogged.compareAndSet(false, true)) {

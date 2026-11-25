@@ -16,10 +16,10 @@ Checked and decided. Don't suggest changing them in reviews:
 - The Java overloads of `CrispNotifications.handleNotification` differ from 2.x on purpose. The documentation covers it.
 - The in-chat prompt is answered per session (`promptAnswered`), as 2.x did: it is shown again on a new session while the permission is not granted or the channel of the website is turned off (then "Enable" opens the notification settings of the app), even if the user denied it before. Don't gate it on the permission state (as iOS does with `.notDetermined`), nor add a device-wide "asked" flag.
 - The in-chat prompt is shown following these rules, in order (`CrispNotificationPrompt.decide`):
-  1. shown before on the session (`promptShown`): right away, below the `$identity` message if shown, otherwise standalone,
-  2. `$identity` message shown: right away, below it, without header,
-  3. identity form shown: wait,
-  4. identity form closed: wait for the `$identity` message,
+  1. `$identity` message shown: right away, below it, without header,
+  2. identity form shown: wait, even if shown before on the session (never over the form),
+  3. identity form closed: wait `FORM_CLOSED_DELAY` (1s) for the `$identity` message,
+  4. shown before on the session (`promptShown`): standalone, after `RESTORE_DELAY` (1s) for the `$identity` message to be restored first,
   5. the user sent a message in this page and `IDENTITY_DELAY` (6s) elapsed without identity request: right away, standalone.
   A user message restored on load does not show it standalone (unlike iOS): it waits for the next message sent.
 - The handover (`CrispChatboxNotifications.handOverIfNeeded`) loads the previous session again in the Web client to unregister its token, as the servers only unregister from the joined session. Its side effects on the previous session (the visitor seen online, messages possibly marked read, triggers) are accepted until the servers can unregister otherwise (TODO in `CrispNotificationPolicy`).

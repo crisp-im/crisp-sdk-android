@@ -32,7 +32,7 @@ class CrispChatboxNotificationsTest {
     private val chatboxStore = CrispChatboxStore()
     private val store = CrispNotificationStore(FakeSharedPreferences())
     private var canShow = true
-    private var canConnect = true
+    private var isOnline = true
     private var fetches = 0
     private val timeout = 15.seconds
 
@@ -62,7 +62,7 @@ class CrispChatboxNotificationsTest {
         CrispLegacyStorage(folder.newFolder(), folder.newFolder()),
         scope = { backgroundScope },
         timeout = { timeout },
-        canConnect = { canConnect },
+        isOnline = { isOnline },
         createSync = {
             CrispNotificationSync(
                 context,
@@ -275,7 +275,7 @@ class CrispChatboxNotificationsTest {
 
     @Test fun `offline, the load fails, keeping the previous session`() = runTest {
         store.update("website") { CrispNotificationRecord(enabled = true, session = previous) }
-        canConnect = false
+        isOnline = false
 
         assertTrue(notifications().handOver())
 

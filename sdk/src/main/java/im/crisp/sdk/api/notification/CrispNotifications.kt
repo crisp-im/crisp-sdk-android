@@ -113,8 +113,8 @@ object CrispNotifications {
      * whose last `Intent` has the extras of the notification,
      * to show the chatbox component of your choice with [configFrom].
      *
-     * Without back stack (an empty [backStack], and no launcher `Activity`), tapping it only dismisses it: the
-     * chatbox is never opened alone, which would close the screens of your app.
+     * Without back stack (an empty [backStack], and no launcher `Activity`), tapping it does nothing, the user can only
+     * swipe it away. The chatbox is never opened alone, which would close the screens of your app.
      *
      * Not shown (returning `false`) if it is not a Crisp notification,
      * if notifications are disabled for its website, not allowed by the user,
