@@ -200,28 +200,39 @@ internal class CrispNotificationSync(
 
     /**
      * Before the page resets its session, unregisters the token registered on it, if any, then forgets it.
-     * Kept if the page is replaced meanwhile ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown),
-     * for the next page to unregister it before resetting the session.
      *
      * Waits for the session to be joined, up to [timeout].
-     * Once elapsed, the session is reset anyway, its token being left on it,
-     * and the recorded session of its `tokenId` is [revoked][CrispNotificationPolicy.revoke],
+     * Once elapsed, the session is reset anyway, its token being left on it.
+     *
+     * Whenever the token is not unregistered (not joined in time, canceled, e.g. by the loading timeout of the
+     * chatbox, which elapses first for a reset made before it becomes ready, or the page replaced meanwhile,
+     * [JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded]
+     * thrown), the recorded session of its `tokenId` is [revoked][CrispNotificationPolicy.revoke],
      * not to show its notifications until the next session joined replaces it.
+     * Its token is kept, for the next page to unregister it before resetting the session, as the reset stays requested.
      * Already revoked for a reset requested through a controller, but not for one made on load
      * (a website loaded without its previous `tokenId`), retried after failing.
      */
     suspend fun beforeReset(config: CrispConfig, bridge: CrispClientBridge, timeout: Duration) {
         if (store.record(config.websiteId).session?.notificationId == null) return
-        val sessionId = withTimeoutOrNull(timeout) { chatboxStore.awaitJoined() }
-        if (sessionId == null) {
-            log(Level.WARN, LOG_TAG, "Session not joined in time, reset without unregistering its FCM token")
-            store.update(config.websiteId) { record -> CrispNotificationPolicy.revoke(record, config.tokenId) }
-            return
+        var isUnregistered = false
+        try {
+            val sessionId = withTimeoutOrNull(timeout) { chatboxStore.awaitJoined() }
+            if (sessionId == null) {
+                log(Level.WARN, LOG_TAG, "Session not joined in time, reset without unregistering its FCM token")
+                return
+            }
+            // Forgotten once unregistered, so that it is unregistered by the next page if this one is replaced before
+            CrispNotificationPolicy.onBeforeReset(store.record(config.websiteId), sessionId).second
+                ?.let { unregister(bridge, sessionId, it) }
+            store.update(config.websiteId) { record -> CrispNotificationPolicy.onBeforeReset(record, sessionId).first }
+            isUnregistered = true
+        } finally {
+            // Only once not unregistered on the Web, as the other updates of the record
+            if (!isUnregistered) {
+                store.update(config.websiteId) { record -> CrispNotificationPolicy.revoke(record, config.tokenId) }
+            }
         }
-        // Forgotten once unregistered, so that it is unregistered by the next page if this one is replaced before
-        CrispNotificationPolicy.onBeforeReset(store.record(config.websiteId), sessionId).second
-            ?.let { unregister(bridge, sessionId, it) }
-        store.update(config.websiteId) { record -> CrispNotificationPolicy.onBeforeReset(record, sessionId).first }
     }
 
     // endregion

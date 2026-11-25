@@ -95,16 +95,11 @@ internal class CrispChatboxNotifications(
     fun attach(bridge: CrispClientBridge) {
         bridge.onPickerClick { event ->
             val config = store.config.value ?: return@onPickerClick
-            val scope = scope() ?: return@onPickerClick
-            scope.launch {
-                try {
-                    // Registers the token now allowed
-                    prompter.onPickerClick(config, event, ::checkAllowed)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log(Level.WARN, LOG_TAG, "Cannot handle the notification prompt", e)
-                }
+            try {
+                // Registers the token now allowed
+                prompter.onPickerClick(config, event, ::checkAllowed)
+            } catch (e: Exception) {
+                log(Level.WARN, LOG_TAG, "Cannot handle the notification prompt", e)
             }
         }
     }

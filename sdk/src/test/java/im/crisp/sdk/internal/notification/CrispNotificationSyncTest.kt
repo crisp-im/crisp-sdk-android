@@ -406,6 +406,19 @@ class CrispNotificationSyncTest {
         assertEquals(registered.copy(revoked = true), store.record("website").session)
     }
 
+    @Test fun `the session is revoked if canceled before unregistering, keeping its token`() = test {
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
+
+        // E.g. by the loading timeout of the chatbox, elapsed first for a reset on load
+        val job = launch { sync.beforeReset(config, bridge, 30.seconds) }
+        advanceTimeBy(5.seconds)
+        job.cancel()
+        job.join()
+
+        assertTrue(calls.isEmpty())
+        assertEquals(registered.copy(revoked = true), store.record("website").session)
+    }
+
     @Test fun `a session of another tokenId is not revoked if not joined in time`() = test {
         val other = registered.copy(tokenId = "user_b")
         store.update("website") { CrispNotificationRecord(enabled = true, session = other) }

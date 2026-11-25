@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
 import android.webkit.WebView
+import androidx.annotation.VisibleForTesting
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
@@ -95,6 +96,13 @@ internal class CrispWebView @JvmOverloads constructor(
         }
 
         // endregion
+
+        /**
+         * Tests only: installs the bridge without WebView provider (Robolectric, where `WEB_MESSAGE_LISTENER`
+         * is not supported), giving it to the test, which posts the messages of the page to it.
+         */
+        @VisibleForTesting
+        internal var testBridgeListener: ((CrispWebView, WebViewBridge) -> Unit)? = null
     }
 
     private lateinit var crispWebViewClient: CrispWebViewClient
@@ -147,14 +155,19 @@ internal class CrispWebView @JvmOverloads constructor(
 
         // WebView must be min v118 for Crisp widget to work properly, see CrispWebViewVersion.MIN_WEBVIEW_MAJOR
         // (checked by CrispWebViewSupport before loading, which also guarantees WEB_MESSAGE_LISTENER)
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        val testBridgeListener = testBridgeListener
+        if (testBridgeListener != null || WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             val bridge = WebViewBridge(this).also { webViewBridge = it }
-            WebViewCompat.addWebMessageListener(
-                this,
-                WebViewBridge.JS_OBJECT_NAME,
-                setOf("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
-            ) { _, message, _, _, _ ->
-                message.data?.let(bridge::onMessage)
+            if (testBridgeListener != null) {
+                testBridgeListener(this, bridge)
+            } else {
+                WebViewCompat.addWebMessageListener(
+                    this,
+                    WebViewBridge.JS_OBJECT_NAME,
+                    setOf("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
+                ) { _, message, _, _, _ ->
+                    message.data?.let(bridge::onMessage)
+                }
             }
             clientBridge = CrispClientBridge(bridge.evaluator, bridge.events).also {
                 it.bindTo(store)

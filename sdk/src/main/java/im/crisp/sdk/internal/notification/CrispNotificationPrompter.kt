@@ -117,13 +117,20 @@ internal class CrispNotificationPrompter(
      * so the Web client does not update the message on the Crisp servers
      * (see `onMessagePickerButtonClick` of `crisp-client`).
      */
-    suspend fun onPickerClick(
+    fun onPickerClick(
         config: CrispConfig,
         event: PickerClickEvent,
         onGranted: () -> Unit,
     ) {
         if (event.fingerprint != PROMPT_FINGERPRINT) return
-        val loaded = chatboxStore.awaitLoaded()
+        // The session of the page the prompt was shown in, known while disconnected.
+        // `null` once that page is being replaced (e.g. while unregistering before loading another `tokenId`),
+        // the click then being dropped, not to be recorded on the session of the next page
+        val loaded = chatboxStore.sessionId.value
+        if (loaded == null) {
+            log(Level.WARN, LOG_TAG, "Prompt answered on a page being replaced, ignored")
+            return
+        }
         log(Level.DEBUG, LOG_TAG, "Prompt answered on session ${loaded.short()}: ${event.choiceValue}")
         store.update(config.websiteId) { record ->
             val session = record.session?.takeIf { it.sessionId == loaded } ?: return@update record

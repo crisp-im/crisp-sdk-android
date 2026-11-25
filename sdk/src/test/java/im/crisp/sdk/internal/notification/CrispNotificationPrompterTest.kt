@@ -39,7 +39,7 @@ class CrispNotificationPrompterTest {
         chatboxStore.onSessionLoaded("session_a")
     }
 
-    private suspend fun answer(choice: String) = prompter.onPickerClick(
+    private fun answer(choice: String) = prompter.onPickerClick(
         config,
         PickerClickEvent(CrispNotificationPrompter.PROMPT_FINGERPRINT, PickerId("notifications"), choice),
     ) { granted++ }
@@ -72,6 +72,18 @@ class CrispNotificationPrompterTest {
             assertEquals(0, granted)
             assertTrue(store.record("website").session?.promptAnswered == true)
         }
+
+    @Test fun `a choice in a page being replaced is ignored, not to answer the session of the next page`() = runTest {
+        // E.g. unregistering before loading another tokenId, the page still shown
+        chatboxStore.onPageStarted()
+
+        answer("enable")
+        chatboxStore.onSessionLoaded("session_b")
+
+        assertEquals(registered, store.record("website").session)
+        assertEquals(0, granted)
+        assertNull(shadowOf(context).nextStartedActivity)
+    }
 
     @Test fun `skipping never opens the settings`() = runTest {
         turnChannelOff()

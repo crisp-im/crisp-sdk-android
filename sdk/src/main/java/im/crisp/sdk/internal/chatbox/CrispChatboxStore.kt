@@ -125,9 +125,6 @@ internal class CrispChatboxStore(
             .filterNotNull()
             .first()
 
-    /** The session loaded by the page, even while its socket is disconnected (see [sessionId]). */
-    suspend fun awaitLoaded(): String = sessionId.filterNotNull().first()
-
     // Called by WebViewClient / WebChromeClient / Bridge
     internal fun onPageStarted() {
         onPageReady = null
