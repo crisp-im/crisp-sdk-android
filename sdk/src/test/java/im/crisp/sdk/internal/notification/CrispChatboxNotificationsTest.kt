@@ -372,7 +372,7 @@ class CrispChatboxNotificationsTest {
         assertTrue(isHandingOver)
         assertTrue(failures.single() is CrispClientException.WebViewUnavailable)
         assertEquals(0, finished)
-        assertFalse(chatboxStore.isHandingOver)
+        assertEquals(CrispChatboxStore.PageMode.CHATBOX, chatboxStore.pageMode)
         assertEquals(previous, store.record("website").session)
     }
 

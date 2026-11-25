@@ -343,10 +343,10 @@ class CrispNotificationSyncTest {
         job.cancel()
     }
 
-    @Test fun `the page is ready even while held not ready, as during a handover`() = test {
+    @Test fun `the session is joined even while the page is not of the chatbox session, as during a handover`() = test {
         store.update("website") { it.copy(enabled = true) }
         store.deviceToken = "fcm_1"
-        chatboxStore.holdNextReady {}
+        chatboxStore.onPageStarted(CrispChatboxStore.PageMode.HANDOVER)
         joined()
 
         sync.onPageLoaded(config, bridge)

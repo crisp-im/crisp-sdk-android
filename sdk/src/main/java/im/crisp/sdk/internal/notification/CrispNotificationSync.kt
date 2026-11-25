@@ -83,7 +83,7 @@ internal class CrispNotificationSync(
      * registers the token of the device on it,
      * or unregisters it (see [CrispNotificationPolicy.onSessionLoaded]).
      *
-     * Runs as long as the page, from the time it starts.
+     * Started with the page, waits for its session to be joined, then returns once the calls are made.
      * Registers the token last saved right away, without waiting for Firebase, which does not time out (e.g. offline).
      * The token is fetched meanwhile by [refreshToken], and registered by [followDeviceToken] if it changed.
      * It usually did not, as `onNewToken` and `onRegistered` save it, even while no chatbox is loaded.

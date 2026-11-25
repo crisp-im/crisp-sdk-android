@@ -1,6 +1,7 @@
 package im.crisp.sdk.internal.chatbox
 
 import android.content.Context
+import android.webkit.CookieManager
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
 import java.io.InvalidClassException
@@ -48,6 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class CrispLegacyStorage(
     private val cacheDir: File,
     private val filesDir: File,
+    // Writes the cookies of the WebView to disk, see removeSaved
+    private val flushCookies: () -> Unit = {},
     // Deletes the SharedPreferences of the given name, returning whether none is left
     private val deletePreferences: (name: String) -> Boolean = { true },
 ) {
@@ -74,7 +78,8 @@ internal class CrispLegacyStorage(
     }
 
     /**
-     * Removes the pre-3.x session of [websiteId], once restored, or reset, not to restore it again.
+     * Removes the pre-3.x session of [websiteId] right away, e.g. once reset, not to restore it again.
+     * Once restored, see [removeSaved].
      */
     fun remove(websiteId: String) {
         val key = key(websiteId) ?: return
@@ -82,6 +87,26 @@ internal class CrispLegacyStorage(
         if (file.exists() && !file.delete()) {
             log(Level.WARN, LOG_TAG, "Cannot remove the session from the pre-3.x SDK")
         }
+    }
+
+    /**
+     * Removes the pre-3.x session of [websiteId] once restored, i.e. saved by the Web client,
+     * not to restore it again, once that save is on disk.
+     *
+     * The Web client saves its session in a cookie, read first, and in localStorage,
+     * which the WebView both writes to disk with a delay (cookies up to about 30s).
+     * If the app is killed meanwhile, the session would be lost, with its file removed.
+     * So the cookies are written to disk first (blocking, in the background).
+     * Removed anyway if they cannot be, as before: restoring it again could revert a session reset in the page since.
+     * localStorage has no such API.
+     */
+    suspend fun removeSaved(websiteId: String) = withContext(Dispatchers.IO) {
+        try {
+            flushCookies()
+        } catch (e: Exception) {
+            log(Level.WARN, LOG_TAG, "Cannot write the session restored from the pre-3.x SDK to disk", e)
+        }
+        remove(websiteId)
     }
 
     /**
@@ -342,7 +367,13 @@ internal class CrispLegacyStorage(
 
         fun from(context: Context): CrispLegacyStorage {
             val appContext = context.applicationContext
-            return CrispLegacyStorage(appContext.cacheDir, appContext.filesDir, appContext::deleteSharedPreferences)
+            return CrispLegacyStorage(
+                appContext.cacheDir,
+                appContext.filesDir,
+                // Only called once a page loaded, so the WebView is set up
+                flushCookies = { CookieManager.getInstance().flush() },
+                deletePreferences = appContext::deleteSharedPreferences,
+            )
         }
 
         private fun key(websiteId: String): String? =

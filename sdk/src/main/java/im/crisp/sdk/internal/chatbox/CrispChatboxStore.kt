@@ -52,15 +52,9 @@ internal class CrispChatboxStore(
     private val _clientEvents = MutableSharedFlow<CrispClientEvent>(extraBufferCapacity = 64)
     val clientEvents: SharedFlow<CrispClientEvent> = _clientEvents.asSharedFlow()
 
-    /**
-     * Whether the page loads another session than the one of [config] for a moment,
-     * e.g. to unregister its notifications: its events are not forwarded to the controller,
-     * as they are not of the chatbox session.
-     */
-    internal var isHandingOver = false
-
+    /** Dropped unless the page is of the chatbox session, see [PageMode]. */
     internal fun emitClientEvent(event: CrispClientEvent) {
-        if (isHandingOver) return
+        if (pageMode != PageMode.CHATBOX) return
         _clientEvents.tryEmit(event)
     }
 
@@ -68,12 +62,40 @@ internal class CrispChatboxStore(
 
     // region state
 
+    /**
+     * What the page is loaded for, set when it starts (see [onPageStarted]).
+     * Only a [chatbox][PageMode.CHATBOX] page becomes ready and forwards its events to the controller:
+     * the others hold another session for a moment, to unregister its notifications,
+     * so the controller calls of the chatbox session must not reach them.
+     */
+    internal enum class PageMode {
+        /** The session of [config]. */
+        CHATBOX,
+
+        /**
+         * The previous session of the website loaded again before the session of [config],
+         * to unregister its notifications there,
+         * see [CrispChatboxNotifications.handOverIfNeeded][im.crisp.sdk.internal.notification.CrispChatboxNotifications.handOverIfNeeded].
+         */
+        HANDOVER,
+
+        /**
+         * The page of the previous config, kept for a moment to unregister the notifications of its session
+         * before loading [config], see
+         * [CrispChatboxNotifications.unregisterBeforeReplacing][im.crisp.sdk.internal.notification.CrispChatboxNotifications.unregisterBeforeReplacing].
+         */
+        UNREGISTERING,
+    }
+
+    var pageMode = PageMode.CHATBOX
+        private set
+
     private val _state = MutableStateFlow<CrispChatboxState>(CrispChatboxState.Loading)
     val state: StateFlow<CrispChatboxState> = _state.asStateFlow()
 
     /**
      * The session the page joined (its `session:loaded` event), until another page starts,
-     * even while held not ready (see [holdNextReady]).
+     * whatever its [pageMode], even while held not ready (see [holdNextReady]).
      *
      * The Web client emits it once the servers sent the `session:state` of the session joined
      * (`triggerSessionLoaded`), so it tells that the session is joined while [isSocketConnected].
@@ -128,9 +150,14 @@ internal class CrispChatboxStore(
             .first()
 
     // Called by WebViewClient / WebChromeClient / Bridge
-    internal fun onPageStarted() {
+
+    /**
+     * A page starts loading for [mode], forgetting the state of the previous one.
+     * Also for a page kept for another [mode], e.g. [PageMode.UNREGISTERING].
+     */
+    internal fun onPageStarted(mode: PageMode = PageMode.CHATBOX) {
         onPageReady = null
-        isHandingOver = false
+        pageMode = mode
         _isSocketConnected.value = false
         _sessionId.value = null
         loadedSessionId = null
@@ -142,17 +169,17 @@ internal class CrispChatboxStore(
      * interface lifecycle event), or the page prepared by [holdNextReady] can become ready.
      * Then emits [CrispClientEvent.Loaded] once its session is known, see [onSessionLoaded].
      *
-     * Never ready while [isHandingOver], whose page is not of the chatbox session.
-     * The Web client is ready again once it resets its session in the page (e.g. purged by an operator during a handover),
-     * after the hold of the page was used, until replaced by the page of the chatbox session.
+     * Never ready, nor held, unless the page is of the chatbox session (see [PageMode]),
+     * even once the Web client is ready again, as it resets its session in the page
+     * (e.g. purged by an operator during a handover).
      */
     internal fun onPageFinished() {
+        if (pageMode != PageMode.CHATBOX) return
         onPageReady?.let {
             onPageReady = null
             it()
             return
         }
-        if (isHandingOver) return
         _state.value = CrispChatboxState.Ready
         emitLoadedIfNeeded()
     }

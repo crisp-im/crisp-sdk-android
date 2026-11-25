@@ -3,6 +3,7 @@ package im.crisp.sdk.internal.chatbox
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.internal.notification.CrispNotificationRecord
 import im.crisp.sdk.internal.notification.CrispNotificationSession
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -91,6 +92,27 @@ class CrispLegacyStorageTest {
         sessions.remove("website")
 
         assertEquals(OTHER_SESSION_ID, sessions.sessionId(CrispConfig("other")))
+    }
+
+    @Test fun `a session restored is removed once the cookies are written to disk`() = runTest {
+        saveSession("website", SESSION_ID)
+        val file = File(directory, "session_website.0")
+        var existedWhenFlushed: Boolean? = null
+        val sessions = CrispLegacyStorage(cacheDir, filesDir, flushCookies = { existedWhenFlushed = file.exists() })
+
+        sessions.removeSaved("website")
+
+        assertEquals(true, existedWhenFlushed)
+        assertFalse(file.exists())
+    }
+
+    @Test fun `a session restored is removed even if the cookies cannot be written`() = runTest {
+        saveSession("website", SESSION_ID)
+        val sessions = CrispLegacyStorage(cacheDir, filesDir, flushCookies = { throw IllegalStateException() })
+
+        sessions.removeSaved("website")
+
+        assertNull(sessions.sessionId(CrispConfig("website")))
     }
 
     @Test fun `removing a missing session does nothing`() {

@@ -30,9 +30,7 @@ class CrispChatboxStoreTest {
         val clientEvents = mutableListOf<CrispClientEvent>()
         backgroundScope.launch { store.clientEvents.collect { clientEvents += it } }
 
-        store.onPageStarted()
-        store.isHandingOver = true
-        store.holdNextReady {}
+        store.onPageStarted(CrispChatboxStore.PageMode.HANDOVER)
         store.onSessionLoaded("session_a")
         store.onPageFinished()
         // Purged by an operator: the Web client joins a new session and is ready again
@@ -41,6 +39,25 @@ class CrispChatboxStoreTest {
 
         assertEquals(CrispChatboxState.Loading, store.state.value)
         assertTrue(clientEvents.isEmpty())
+    }
+
+    @Test fun `a page kept to unregister is not ready until a chatbox page starts`() = runTest(UnconfinedTestDispatcher()) {
+        val store = CrispChatboxStore(backgroundScope)
+        val clientEvents = mutableListOf<CrispClientEvent>()
+        backgroundScope.launch { store.clientEvents.collect { clientEvents += it } }
+
+        store.onPageStarted(CrispChatboxStore.PageMode.UNREGISTERING)
+        store.onSessionLoaded("session_a")
+        store.onPageFinished()
+        store.emitClientEvent(CrispClientEvent.Loaded("session_a"))
+        assertEquals(CrispChatboxState.Loading, store.state.value)
+        assertTrue(clientEvents.isEmpty())
+
+        store.onPageStarted()
+        store.onSessionLoaded("session_b")
+        store.onPageFinished()
+        assertEquals(CrispChatboxState.Ready, store.state.value)
+        assertEquals(listOf(CrispClientEvent.Loaded("session_b")), clientEvents)
     }
 
     @Test fun `the action becomes ready by finishing the page again`() = runTest(UnconfinedTestDispatcher()) {

@@ -156,7 +156,9 @@ internal class CrispNotificationStore(
             // Not retried, not to fail each time
             log(Level.WARN, LOG_TAG, "Cannot migrate the notification settings of the pre-3.x SDK", e)
         }
-        preferences.edit { putBoolean(LEGACY_MIGRATED_KEY, true) }
+        // Committed, before deleting the files below, so that the records migrated are not lost if the process dies:
+        // written with them, as a commit writes all the values, including those applied before
+        preferences.edit(commit = true) { putBoolean(LEGACY_MIGRATED_KEY, true) }
         // Guarded too, as read by handleNotification: left files are deleted by CrispLegacyStorage.cleanUp
         try {
             removeLegacy()

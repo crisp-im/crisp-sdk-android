@@ -142,10 +142,8 @@ internal class CrispChatboxNotifications(
         if (store.sessionId.value != previous.sessionId || !store.isSocketConnected.value) return false
         val scope = scope() ?: return false
         log(Level.INFO, LOG_TAG, "Unregistering the notifications of the session joined before loading another one")
-        store.onPageStarted()
-        store.isHandingOver = true
         // Never ready meanwhile, so that the controllers do not call it
-        store.holdNextReady {}
+        store.onPageStarted(CrispChatboxStore.PageMode.UNREGISTERING)
         handoverJob = scope.launch {
             try {
                 withTimeoutOrNull(timeout()) { sync.unregisterBeforeReplacing(next, previous, bridge) }
@@ -218,16 +216,16 @@ internal class CrispChatboxNotifications(
         }
         val handover = sync.handoverConfig(config, previous, legacyStorage::sessionId)
         log(Level.INFO, LOG_TAG, "Loading the previous session first to unregister its notifications")
-        store.isHandingOver = true
         // Never ready meanwhile, so that the controllers do not call it
-        store.holdNextReady {}
+        store.onPageStarted(CrispChatboxStore.PageMode.HANDOVER)
         try {
             load(handover)
         } catch (e: CrispClientException) {
             // Not specific to the previous session (WebView, assets), so the chatbox could not load either:
             // kept to hand it over on the next load
             log(Level.WARN, LOG_TAG, "Cannot load the previous session to unregister its notifications", e)
-            store.isHandingOver = false
+            // Not started, so back to the chatbox page, failing
+            store.onPageStarted()
             onFailed(e)
             return true
         }
@@ -247,7 +245,7 @@ internal class CrispChatboxNotifications(
                 null
             }
             // Saved by the Web client once joined, so restored from its storage from now on
-            if (isJoined == true && handover.sessionId != null) legacyStorage.remove(config.websiteId)
+            if (isJoined == true && handover.sessionId != null) legacyStorage.removeSaved(config.websiteId)
             // First, not to cancel this job while loading
             handoverJob = null
             if (isJoined == false) {

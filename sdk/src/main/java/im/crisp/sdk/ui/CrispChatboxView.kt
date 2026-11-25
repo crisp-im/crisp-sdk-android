@@ -899,7 +899,7 @@ class CrispChatboxView @JvmOverloads constructor(
         legacySessionRemovalJob = scope.launch {
             store.isSocketConnected.first { it }
             webView?.clearSessionId()
-            legacyStorage.remove(websiteId)
+            legacyStorage.removeSaved(websiteId)
             legacySessionRemovalJob = null
         }
     }
