@@ -1,3 +1,4 @@
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jreleaser.model.Active
 import org.jreleaser.model.Http
 import org.jreleaser.model.api.deploy.maven.MavenCentralMavenDeployer
@@ -51,8 +52,16 @@ android {
         }
     }
     testOptions {
+        // The instrumented tests (e.g. tapping notifications) run as the app does
+        targetSdk = 37
         // Android methods (e.g. android.util.Log) return default values instead of throwing
         unitTests.isReturnDefaultValues = true
+        // Robolectric tests (e.g. notifications) read the SDK resources
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // Robolectric sets up Android 16+ shared memory through JDK internals, closed by default
+            it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+        }
     }
     publishing {
         // Not `withSourcesJar()`, which would disclose `internal` sources: see `publicSourcesJar`
@@ -68,17 +77,28 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.webkit)
+    implementation(libs.androidx.window)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.window)
     implementation(libs.material)
+    // Notifications, only if the app adds Firebase Cloud Messaging: not to force it on apps without notifications.
+    // Never referenced outside CrispFirebase and CrispNotificationService, checked to be available at runtime
+    compileOnly(libs.firebase.messaging)
+    debugImplementation(libs.androidx.ui.tooling)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Tests of Android components (notifications, activities) on the JVM, see `@RunWith(AndroidJUnit4::class)`
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.ui.tooling)
+    androidTestImplementation(libs.androidx.test.runner)
+    // Taps the notifications in the shade, see CrispNotificationTapTest
+    androidTestImplementation(libs.androidx.uiautomator)
 }
 
 // Documentation
@@ -93,6 +113,9 @@ dokka {
     }
     dokkaSourceSets.configureEach {
         includes.from("Module.md")
+        // Also the protected members meant to be overridden (e.g. of `CrispNotificationService`),
+        // those only overridden from Android being hidden with `@suppress`
+        documentedVisibilities(VisibilityModifier.Public, VisibilityModifier.Protected)
         // Only documents the public API (`api`, `model` and `ui`)
         perPackageOption {
             matchingRegex.set("""im\.crisp\.sdk\.internal(\..*)?""")
@@ -109,6 +132,42 @@ dokka {
             remoteUrl("https://github.com/crisp-im/crisp-sdk-android/tree/beta/sdk/src/main/java")
             remoteLineSuffix.set("#L")
         }
+    }
+}
+
+// Dokka titles every package page "Package-level declarations", which no option changes: titled here instead.
+// A package missing from it keeps its name as title, with a warning
+val packageTitles = mapOf(
+    "im.crisp.sdk.api" to "API",
+    "im.crisp.sdk.api.controller" to "Crisp controllers",
+    "im.crisp.sdk.api.controller.chatbox" to "Crisp Chatbox controller",
+    "im.crisp.sdk.api.notification" to "Notifications",
+    "im.crisp.sdk.model" to "Models",
+    "im.crisp.sdk.ui" to "UI components",
+)
+tasks.dokkaGeneratePublicationHtml {
+    val outputDir = outputDirectory
+    val titles = packageTitles
+    inputs.property("packageTitles", titles)
+    doLast {
+        val heading = Regex("""<h1 class="cover">(?:\s*<span><span>[^<]*</span></span>)+\s*</h1>""")
+        val pageTitle = Regex("""<title>([^<]+)</title>""")
+        outputDir.get().asFile.walk()
+            .filter { it.name == "index.html" }
+            .forEach { page ->
+                val html = page.readText()
+                if ("""data-page-type="package"""" !in html) return@forEach
+                val packageName = pageTitle.find(html)?.groupValues?.get(1)
+                val match = heading.find(html)
+                if (packageName == null || match == null || "Package-level" !in match.value) {
+                    logger.warn("Cannot rename the package page heading of ${page.parentFile.name}, its markup changed")
+                    return@forEach
+                }
+                val title = titles[packageName] ?: packageName.also {
+                    logger.warn("No title for package $it in packageTitles of sdk/build.gradle.kts")
+                }
+                page.writeText(html.replaceRange(match.range, """<h1 class="cover"><span><span>$title</span></span></h1>"""))
+            }
     }
 }
 

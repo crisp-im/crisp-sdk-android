@@ -23,7 +23,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /**
- * Dispatches the calls of [CrispSessionController][im.crisp.sdk.api.CrispSessionController] to their session:
+ * Dispatches the calls of [CrispSessionController][im.crisp.sdk.api.controller.CrispSessionController] to their session:
  * right away to a chatbox ready with it, or else once one is, before it becomes ready.
  *
  * Persisted until dispatched, so that they survive the chatbox being closed or the app being killed.
@@ -42,6 +42,12 @@ internal class CrispControllerDispatcher(
         val bridge: CrispClientBridge,
         val config: StateFlow<CrispConfig?>,
         val state: StateFlow<CrispChatboxState>,
+        // Run before resetting its session, e.g. not to restore the one it was loaded with again,
+        // or to unregister its notifications
+        val beforeReset: suspend () -> Unit = {},
+        // Run once its session could not be reset, the page staying ready with it,
+        // e.g. to restart what beforeReset stopped (its notifications)
+        val onResetFailed: () -> Unit = {},
         // Reloads the chatbox, e.g. to start a new session once reset
         val reload: () -> Unit
     )
@@ -184,6 +190,7 @@ internal class CrispControllerDispatcher(
             Result.DISPATCHED -> true
             Result.PAGE_UNLOADED -> false
             Result.RESET_PENDING -> try {
+                chatbox.beforeReset()
                 chatbox.bridge.reset()
                 onSessionReset(config)
                 // Not if its WebView was removed meanwhile, e.g. its view recreated
@@ -197,6 +204,7 @@ internal class CrispControllerDispatcher(
                 // Reset by the next page, before it becomes ready
                 false
             } catch (e: Exception) {
+                chatbox.onResetFailed()
                 throw IllegalStateException("Cannot reset the session", e)
             }
         }

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Declared by firebase-messaging in apps, compileOnly in the SDK -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <!-- The launcher Activities of the app, only one enabled at once, see CrispNotificationTapTest -->
+        <activity
+            android:name="im.crisp.sdk.internal.notification.TestLauncherActivity"
+            android:label="Launcher"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="im.crisp.sdk.internal.notification.TestSingleTaskLauncherActivity"
+            android:label="SingleTaskLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="im.crisp.sdk.internal.notification.TestAffinityLauncherActivity"
+            android:label="AffinityLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:taskAffinity="im.crisp.sdk.test.affinity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="im.crisp.sdk.internal.notification.TestSingleInstanceLauncherActivity"
+            android:label="SingleInstanceLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:launchMode="singleInstance">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- A screen opened above the launcher -->
+        <activity
+            android:name="im.crisp.sdk.internal.notification.TestScreenActivity"
+            android:label="Screen"
+            android:exported="false" />
+    </application>
+
+</manifest>

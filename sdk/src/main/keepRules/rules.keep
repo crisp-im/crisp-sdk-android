@@ -10,3 +10,15 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+# Firebase Cloud Messaging is compile-only (notifications), so apps without it miss its classes,
+# only referenced by the SDK once checked to be available at runtime.
+# Only those the SDK references (CrispFirebase, CrispNotifications, CrispNotificationService),
+# not to hide the missing classes of the app: those they reference are never missing, as only present with them.
+# Update it when referencing another one
+-dontwarn com.google.android.gms.tasks.OnCompleteListener
+-dontwarn com.google.android.gms.tasks.Task
+-dontwarn com.google.firebase.FirebaseApp
+-dontwarn com.google.firebase.installations.FirebaseInstallations
+-dontwarn com.google.firebase.messaging.FirebaseMessaging
+-dontwarn com.google.firebase.messaging.FirebaseMessagingService
+-dontwarn com.google.firebase.messaging.RemoteMessage

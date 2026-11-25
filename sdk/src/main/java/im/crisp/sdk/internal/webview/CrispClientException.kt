@@ -17,6 +17,14 @@ internal sealed class CrispClientException(
         cause: Throwable? = null
     ) : CrispClientException("Website ID is missing", cause)
 
+    /**
+     * Not loaded, as it cannot connect (offline or in background),
+     * e.g. to unregister the notifications of the previous session first, retried on the next load.
+     */
+    class Offline(
+        cause: Throwable? = null
+    ) : CrispClientException("Cannot connect: the device is offline or the app in background", cause)
+
     class LoadingTimeout(
         cause: Throwable? = null
     ) : CrispClientException("Crisp widget did not become ready in time", cause)

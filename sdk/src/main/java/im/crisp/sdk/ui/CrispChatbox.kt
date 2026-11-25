@@ -10,9 +10,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
-import im.crisp.sdk.api.CrispEventCallbacks
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
 import im.crisp.sdk.internal.environment.findActivity
 import im.crisp.sdk.internal.views.CrispSheetDragHost

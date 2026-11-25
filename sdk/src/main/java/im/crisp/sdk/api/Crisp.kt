@@ -36,7 +36,8 @@ object Crisp {
 
     /**
      * Only logs the SDK and Web client logs of [priority] or higher, whether to Logcat or to the registered
-     * [loggers][addLogger]. Defaults to [Log.VERBOSE][android.util.Log.VERBOSE], logging everything.
+     * [loggers][addLogger]. Defaults to [Log.WARN][android.util.Log.WARN], logging warnings and errors.
+     * Use [Log.VERBOSE][android.util.Log.VERBOSE] to log everything, e.g. while debugging.
      *
      * The Web client `log` level maps to [Log.VERBOSE][android.util.Log.VERBOSE].
      *
@@ -49,11 +50,11 @@ object Crisp {
     }
 
     /**
-     * Starts WebView up in the background ahead of time, so that the first chatbox shows faster:
-     * the first WebView of the app process otherwise takes long to create, blocking the UI thread.
+     * Starts WebView up in the background ahead of time, so that the first chatbox shows faster.
+     * The first WebView of the app process otherwise takes long to create, blocking the UI thread.
      *
      * Call it early, e.g. from [Application.onCreate][android.app.Application.onCreate].
-     * Only the first call has an effect, or the first one running the UI thread tasks afterwards:
+     * Only the first call has an effect, or the first one running the UI thread tasks afterwards,
      * e.g. call it without them from [Application.onCreate][android.app.Application.onCreate],
      * not to delay the app start, then with them once the first screen is drawn.
      *

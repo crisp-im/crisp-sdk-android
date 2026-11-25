@@ -6,6 +6,9 @@ import java.net.URL
  * A message content to show locally.
  */
 sealed class MessageContent {
+    /** @suppress */
+    constructor()
+
     data class TextContent(val text: String) : MessageContent()
 
     data class TextContentWithAttachment(

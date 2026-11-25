@@ -1,5 +1,7 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller.chatbox
 
+import im.crisp.sdk.api.CrispConfig
+import im.crisp.sdk.api.controller.CrispSessionController
 import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.js.JSEvaluationException
 import im.crisp.sdk.internal.bridge.js.JSEventBus
@@ -244,29 +246,15 @@ class CrispChatboxControllerTest {
         val callbacks = RecordingCallbacks()
         controller.addEventCallbacks(callbacks)
         attach(controller)
-        fake.result = { "\"session_123\"" }
 
         controller.notifyChatOpened()
         state.value = CrispChatboxState.Ready
-        clientEvents.emit(CrispClientEvent.Loaded)
+        clientEvents.emit(CrispClientEvent.Loaded("session_123"))
         clientEvents.emit(CrispClientEvent.MessageSent(message(1)))
         clientEvents.emit(CrispClientEvent.MessageReceived(message(2)))
         controller.notifyChatClosed()
 
         assertEquals(listOf("opened", "loaded:session_123", "sent:1", "received:2", "closed"), callbacks.events)
-    }
-
-    @Test fun `session loaded is skipped when the identifier is unavailable`() = runTest(UnconfinedTestDispatcher()) {
-        val controller = CrispChatboxController()
-        val callbacks = RecordingCallbacks()
-        controller.addEventCallbacks(callbacks)
-        attach(controller)
-        state.value = CrispChatboxState.Ready
-        fake.result = { throw JSEvaluationException.JSException("boom") }
-
-        clientEvents.emit(CrispClientEvent.Loaded)
-
-        assertTrue(callbacks.events.isEmpty())
     }
 
     @Test fun `detached chatbox events are not notified`() = runTest(UnconfinedTestDispatcher()) {

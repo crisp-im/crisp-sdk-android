@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import im.crisp.sdk.R
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 
 /**
@@ -54,7 +54,7 @@ import im.crisp.sdk.api.CrispConfig
  * and [in code, with a `ViewModel`](https://github.com/crisp-im/crisp-sdk-android/blob/beta/app/src/main/java/im/crisp/catalog/ProgrammaticFragmentActivity.kt).
  *
  * @see EdgeToEdge
- * @see im.crisp.sdk.api.CrispChatboxController
+ * @see im.crisp.sdk.api.controller.chatbox.CrispChatboxController
  */
 class CrispFragment : Fragment() {
     /**

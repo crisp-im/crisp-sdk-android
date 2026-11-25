@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import im.crisp.catalog.R
-import im.crisp.sdk.api.CrispEventCallbacks
+import im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks
 import im.crisp.sdk.model.Message
 
 private const val LOG_TAG = "CrispEvents"

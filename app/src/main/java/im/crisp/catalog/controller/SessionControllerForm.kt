@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import im.crisp.catalog.settings.ChatboxPreferences
 import im.crisp.sdk.api.Crisp
 import im.crisp.sdk.api.CrispConfig
-import im.crisp.sdk.api.CrispSessionController
+import im.crisp.sdk.api.controller.CrispSessionController
 import im.crisp.sdk.model.Company
 import im.crisp.sdk.model.SessionEventColor
 import kotlinx.coroutines.CoroutineScope

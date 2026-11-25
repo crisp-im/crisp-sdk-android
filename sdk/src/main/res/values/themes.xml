@@ -4,6 +4,18 @@
     <style name="Theme.Crisp.SDK" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="popupMenuStyle">@style/Widget.Crisp.SDK.PopupMenu</item>
     </style>
+    <!-- Theme of the CrispNotificationActivity opening the chatbox of a notification in a bottom sheet,
+         translucent to show the app below it, as the ChatActivity of the pre-3.x SDK.
+         Not dimmed: the sheet dims it -->
+    <style name="Theme.Crisp.SDK.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
     <!-- Theme of the SDK bottom sheet dialogs, a full theme (not an overlay) for their Material components to work whatever the app theme -->
     <style name="Theme.Crisp.SDK.BottomSheetDialog" parent="Theme.Material3.DayNight.BottomSheetDialog">
         <item name="enableEdgeToEdge">true</item>

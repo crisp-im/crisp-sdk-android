@@ -1,4 +1,4 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller.chatbox
 
 /**
  * Receives the result of a [CrispChatboxController] getter, on the main thread.

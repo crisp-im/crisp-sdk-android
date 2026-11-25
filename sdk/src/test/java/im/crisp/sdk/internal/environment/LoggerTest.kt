@@ -7,6 +7,7 @@ import im.crisp.sdk.internal.bridge.LogEvent
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class LoggerTest {
@@ -22,11 +23,17 @@ class LoggerTest {
     private val first = RecordingLogger()
     private val second = RecordingLogger()
 
+    @Before
+    fun setUp() {
+        // All logs, to test what is logged at each level
+        Crisp.setLogLevel(Log.VERBOSE)
+    }
+
     @After
     fun tearDown() {
         Crisp.removeLogger(first)
         Crisp.removeLogger(second)
-        Crisp.setLogLevel(Log.VERBOSE)
+        Crisp.setLogLevel(DEFAULT_MIN_PRIORITY)
     }
 
     @Test

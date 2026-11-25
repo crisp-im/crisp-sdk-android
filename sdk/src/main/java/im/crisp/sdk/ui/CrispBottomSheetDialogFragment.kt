@@ -19,7 +19,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import im.crisp.sdk.R
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.api.Presentation
 import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
@@ -67,7 +67,7 @@ import kotlin.math.roundToInt
  * }
  * ```
  *
- * @see im.crisp.sdk.api.CrispChatboxController
+ * @see im.crisp.sdk.api.controller.chatbox.CrispChatboxController
  */
 class CrispBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private var chatboxView: CrispChatboxView? = null
@@ -133,17 +133,8 @@ class CrispBottomSheetDialogFragment : BottomSheetDialogFragment() {
                 }
             }
 
-            val websiteId = arguments?.getString(ARGUMENT_WEBSITE_ID)
-            val tokenId = arguments?.getString(ARGUMENT_TOKEN_ID)
-            if (websiteId != null) {
-                load(
-                    CrispConfig(
-                        websiteId = websiteId,
-                        tokenId = tokenId,
-                        presentation = Presentation.sheet
-                    )
-                )
-            }
+            // The config of this fragment, not of the view (applied here), which has none yet
+            this@CrispBottomSheetDialogFragment.config?.let { load(it) }
 
             enableEdgeToEdge(EdgeToEdge.BOTTOM)
         }
@@ -197,6 +188,29 @@ class CrispBottomSheetDialogFragment : BottomSheetDialogFragment() {
 
     override fun getView(): CrispChatboxView? {
         return chatboxView
+    }
+
+    /** The config of the sheet, from its arguments, so that it is kept when restored. */
+    internal val config: CrispConfig?
+        get() = arguments?.getString(ARGUMENT_WEBSITE_ID)?.let { websiteId ->
+            CrispConfig(
+                websiteId = websiteId,
+                tokenId = arguments?.getString(ARGUMENT_TOKEN_ID),
+                presentation = Presentation.sheet
+            )
+        }
+
+    /**
+     * Loads another session in the sheet shown, rather than replacing it.
+     * Its arguments are updated in place (`setArguments` throws once its state is saved),
+     * so that it is restored with it, then its chatbox reloaded,
+     * or loaded with it once its view is created.
+     */
+    internal fun load(websiteId: String, tokenId: String?) {
+        val arguments = arguments ?: Bundle().also { arguments = it }
+        arguments.putString(ARGUMENT_WEBSITE_ID, websiteId)
+        arguments.putString(ARGUMENT_TOKEN_ID, tokenId)
+        config?.let { chatboxView?.load(it) }
     }
 
     /**

@@ -2,6 +2,7 @@ package im.crisp.sdk.internal.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
@@ -17,6 +18,7 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
 internal class CrispWebViewClient(
     context: Context,
     private val store: CrispChatboxStore,
+    private val onPageStarted: (view: WebView) -> Unit,
     private val onRenderProcessGone: (view: WebView, didCrash: Boolean) -> Unit
 ): WebViewClient() {
     internal var baseUrl: String? = null
@@ -39,6 +41,12 @@ internal class CrispWebViewClient(
             return true
         }
         return false
+    }
+
+    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        if (view != null) {
+            onPageStarted(view)
+        }
     }
 
     override fun onRenderProcessGone(

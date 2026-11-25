@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.view.doOnLayout
 import im.crisp.sdk.R
 import im.crisp.sdk.internal.environment.copyToClipboard
 
@@ -21,13 +22,18 @@ internal fun FrameLayout.showCopyMenu(text: String, x: Double, y: Double) {
         }
     }
     addView(anchor)
-    // AppCompat one with the SDK theme, styled like the bottom sheets whatever the app theme
-    PopupMenu(ContextThemeWrapper(context, R.style.Theme_Crisp_SDK), anchor).apply {
-        menu.add(R.string.crisp_sdk_action_copy).setOnMenuItemClickListener {
-            context.copyToClipboard(text)
-            true
+    // Wait for the anchor to be laid out at its margins before showing, as the popup is positioned
+    // from it when shown. In a View hierarchy, the popup would also be moved on the next global
+    // layout, but not when hosted in Compose (AndroidView), whose layout doesn't trigger it
+    anchor.doOnLayout {
+        // AppCompat one with the SDK theme, styled like the bottom sheets whatever the app theme
+        PopupMenu(ContextThemeWrapper(context, R.style.Theme_Crisp_SDK), anchor).apply {
+            menu.add(R.string.crisp_sdk_action_copy).setOnMenuItemClickListener {
+                context.copyToClipboard(text)
+                true
+            }
+            setOnDismissListener { (anchor.parent as? ViewGroup)?.removeView(anchor) }
+            show()
         }
-        setOnDismissListener { (anchor.parent as? ViewGroup)?.removeView(anchor) }
-        show()
     }
 }

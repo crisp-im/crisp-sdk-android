@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * A setter call made through [CrispSessionController][im.crisp.sdk.api.CrispSessionController],
+ * A setter call made through [CrispSessionController][im.crisp.sdk.api.controller.CrispSessionController],
  * waiting to be dispatched.
  */
 @Serializable

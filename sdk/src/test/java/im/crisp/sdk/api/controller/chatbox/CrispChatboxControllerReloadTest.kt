@@ -1,5 +1,8 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller.chatbox
 
+import im.crisp.sdk.api.CrispConfig
+import im.crisp.sdk.api.Presentation
+import im.crisp.sdk.api.controller.CrispSessionController
 import im.crisp.sdk.internal.bridge.CrispClientBridge
 import im.crisp.sdk.internal.bridge.js.RecordingWebView
 import im.crisp.sdk.internal.bridge.js.WebViewBridge

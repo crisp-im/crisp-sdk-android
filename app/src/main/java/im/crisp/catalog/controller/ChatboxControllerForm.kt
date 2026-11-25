@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 import im.crisp.catalog.settings.ChatboxPreferences
 import im.crisp.catalog.settings.rememberTokenId
 import im.crisp.catalog.settings.rememberWebsiteId
-import im.crisp.sdk.api.CrispChatboxController
-import im.crisp.sdk.api.CrispSessionController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
+import im.crisp.sdk.api.controller.CrispSessionController
 import im.crisp.sdk.model.MessageContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay

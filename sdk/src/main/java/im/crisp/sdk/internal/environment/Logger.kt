@@ -11,9 +11,12 @@ private const val CRISP_CLIENT_LOG_TAG = "CrispClient"
 // Copied on write, so that loggers can be registered from any thread, even while logging
 private val loggers = CopyOnWriteArrayList<CrispLogger>()
 
+// Only warnings and errors by default, see Crisp.setLogLevel
+internal const val DEFAULT_MIN_PRIORITY = Log.WARN
+
 // Volatile, so that it can be set from any thread
 @Volatile
-private var minPriority = Log.VERBOSE
+private var minPriority = DEFAULT_MIN_PRIORITY
 
 internal enum class Level(val priority: Int) {
     ERROR(Log.ERROR),

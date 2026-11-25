@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
 import android.webkit.WebView
+import androidx.annotation.VisibleForTesting
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
@@ -95,6 +96,13 @@ internal class CrispWebView @JvmOverloads constructor(
         }
 
         // endregion
+
+        /**
+         * Tests only: installs the bridge without WebView provider (Robolectric, where `WEB_MESSAGE_LISTENER`
+         * is not supported), giving it to the test, which posts the messages of the page to it.
+         */
+        @VisibleForTesting
+        internal var testBridgeListener: ((CrispWebView, WebViewBridge) -> Unit)? = null
     }
 
     private lateinit var crispWebViewClient: CrispWebViewClient
@@ -138,21 +146,28 @@ internal class CrispWebView @JvmOverloads constructor(
 
         crispWebViewClient = CrispWebViewClient(
             context,
-            store
-        ) { view, didCrash -> if (view == this) onRenderProcessGone(didCrash) }
+            store,
+            onPageStarted = { view -> if (view == this) topSafeAreaInsetDp = null },
+            onRenderProcessGone = { view, didCrash -> if (view == this) onRenderProcessGone(didCrash) }
+        )
         webViewClient = crispWebViewClient
         webChromeClient = CrispWebChromeClient(store)
 
         // WebView must be min v118 for Crisp widget to work properly, see CrispWebViewVersion.MIN_WEBVIEW_MAJOR
         // (checked by CrispWebViewSupport before loading, which also guarantees WEB_MESSAGE_LISTENER)
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        val testBridgeListener = testBridgeListener
+        if (testBridgeListener != null || WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             val bridge = WebViewBridge(this).also { webViewBridge = it }
-            WebViewCompat.addWebMessageListener(
-                this,
-                WebViewBridge.JS_OBJECT_NAME,
-                setOf("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
-            ) { _, message, _, _, _ ->
-                message.data?.let(bridge::onMessage)
+            if (testBridgeListener != null) {
+                testBridgeListener(this, bridge)
+            } else {
+                WebViewCompat.addWebMessageListener(
+                    this,
+                    WebViewBridge.JS_OBJECT_NAME,
+                    setOf("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
+                ) { _, message, _, _, _ ->
+                    message.data?.let(bridge::onMessage)
+                }
             }
             clientBridge = CrispClientBridge(bridge.evaluator, bridge.events).also {
                 it.bindTo(store)
@@ -170,6 +185,9 @@ internal class CrispWebView @JvmOverloads constructor(
     @Throws(CrispClientException::class)
     fun load(config: CrispConfig) {
         webViewBridge?.rejectPendingCalls()
+        // The events of the current page are dropped from now on,
+        // even if the next one cannot be loaded
+        webViewBridge?.endPage()
         checkWebViewSupport()
 
         val assetsUrl = try {
@@ -178,7 +196,7 @@ internal class CrispWebView @JvmOverloads constructor(
             throw CrispClientException.AssetsMissing(e)
         }
 
-        val htmlContent = loadIndexHtml(config, assetsUrl)
+        val htmlContent = loadIndexHtml(config, assetsUrl, pageId = webViewBridge?.startPage().orEmpty())
         val baseUrl = "$assetsUrl/index.html"
         crispWebViewClient.baseUrl = baseUrl
 
@@ -192,7 +210,7 @@ internal class CrispWebView @JvmOverloads constructor(
     }
 
     @Throws(CrispClientException.HtmlMissing::class)
-    private fun loadIndexHtml(config: CrispConfig, assetsUrl: String): String {
+    private fun loadIndexHtml(config: CrispConfig, assetsUrl: String, pageId: String): String {
         val index = try {
             context.assets.open(CrispClient.CRISP_CLIENT_PATH + "/index.html").use { inputStream ->
                 BufferedReader(InputStreamReader(inputStream)).readText()
@@ -210,10 +228,28 @@ internal class CrispWebView @JvmOverloads constructor(
             .replace("{{MOBILE_SDK_ENABLED}}", "true")
             .replace("{{CRISP_CLIENT_JS}}", CrispClient.generatedJS())
             .replace("{{ASSETS_URL}}", assetsUrl)
+            .replace("{{PAGE_ID}}", pageId)
+    }
+
+    /**
+     * Stops restoring the session passed in [load] (see [sessionId][CrispConfig]), once joined,
+     * as the Web client initializes again with it when it resets its session in the page
+     * (e.g. purged by an operator), which would restore it instead of starting a new one.
+     */
+    internal fun clearSessionId() {
+        // No optional chaining, see index.html
+        evaluateJavascript(
+            "(function () { " +
+                "var crisp = document.getElementById('crisp'); " + 
+                "if (crisp) { crisp.removeAttribute('session-id'); } " +
+            "})();",
+            null
+        )
     }
 
     fun clear() {
         webViewBridge?.rejectPendingCalls()
+        webViewBridge?.endPage()
         stopLoading()
         loadUrl("about:blank")
     }
@@ -295,6 +331,15 @@ internal class CrispWebView @JvmOverloads constructor(
 
     // region fixes
 
+    // The top safe area last set on the current page, reset when another page starts
+    private var topSafeAreaInsetDp: Int? = null
+
+    /**
+     * Sets the top safe area of the page to the system bars, if it does not include them on its own.
+     *
+     * Only when it changes, as called on each insets change: they can change once the page is ready,
+     * e.g. when an activity hiding the status bar (camera) returns to this one.
+     */
     internal fun fixSafeArea(edgeToEdge: EdgeToEdge) {
         // Before Android 11 or WebView 140, the safe area does not include the system bars, add them
         if (!CrispWebViewSupport.reportsSafeArea(context) && edgeToEdge.top) {
@@ -302,6 +347,8 @@ internal class CrispWebView @JvmOverloads constructor(
                 WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
             )?.top ?: 0
             val topSystemInsetDp = (topSystemInset / resources.displayMetrics.density).toInt()
+            if (topSystemInsetDp == topSafeAreaInsetDp) return
+            topSafeAreaInsetDp = topSystemInsetDp
 
             val insetTopCss = "document.documentElement.style.setProperty(" +
                     "'--crisp-override-env-safe-area-inset-top', " +

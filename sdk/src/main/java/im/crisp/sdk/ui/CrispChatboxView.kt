@@ -2,12 +2,14 @@ package im.crisp.sdk.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import android.webkit.ValueCallback
 import android.widget.FrameLayout
 import androidx.core.view.OneShotPreDrawListener
 import androidx.core.view.ViewCompat
@@ -20,7 +22,7 @@ import androidx.lifecycle.coroutineScope
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import im.crisp.sdk.R
-import im.crisp.sdk.api.CrispChatboxController
+import im.crisp.sdk.api.controller.chatbox.CrispChatboxController
 import im.crisp.sdk.api.CrispConfig
 import im.crisp.sdk.api.Presentation
 import im.crisp.sdk.internal.bridge.CrispClientBridge
@@ -29,13 +31,18 @@ import im.crisp.sdk.internal.chatbox.CrispChatboxEvent
 import im.crisp.sdk.internal.chatbox.CrispChatboxState
 import im.crisp.sdk.internal.chatbox.CrispChatboxStore
 import im.crisp.sdk.internal.chatbox.CrispControllerDispatcher
+import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.chatbox.CrispSessions
+import im.crisp.sdk.internal.chatbox.CrispSocketLifecycle
 import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.findActivity
+import im.crisp.sdk.internal.environment.isAppInForegroundAndOnline
 import im.crisp.sdk.internal.environment.isDebuggable
 import im.crisp.sdk.internal.environment.log
 import im.crisp.sdk.internal.environment.openExternalUrl
 import im.crisp.sdk.internal.environment.showAlertDialog
+import im.crisp.sdk.internal.notification.CrispChatboxNotifications
+import im.crisp.sdk.internal.notification.CrispNotificationStore
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import im.crisp.sdk.internal.upload.CrispUploadManager
 import im.crisp.sdk.internal.views.CrispClientErrorView
@@ -48,9 +55,11 @@ import im.crisp.sdk.internal.views.showCopyMenu
 import im.crisp.sdk.internal.webview.CrispClientException
 import im.crisp.sdk.internal.webview.CrispWebView
 import im.crisp.sdk.internal.webview.CrispWebViewSupport
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -123,8 +132,8 @@ class CrispChatboxView @JvmOverloads constructor(
      * The default one is closed when replaced or when this view is destroyed, a replacing one is
      * left to its owner.
      *
-     * Replacing it does not notify [onChatOpened][im.crisp.sdk.api.CrispEventCallbacks.onChatOpened]
-     * or [onChatClosed][im.crisp.sdk.api.CrispEventCallbacks.onChatClosed], as the chat stays shown:
+     * Replacing it does not notify [onChatOpened][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks.onChatOpened]
+     * or [onChatClosed][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks.onChatClosed], as the chat stays shown:
      * the next ones are notified to the replacing one.
      */
     var controller: CrispChatboxController = CrispChatboxController()
@@ -226,6 +235,8 @@ class CrispChatboxView @JvmOverloads constructor(
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_START, Lifecycle.Event.ON_STOP -> updateChatOpened()
+            // E.g. back from the system settings or a permission request of the app
+            Lifecycle.Event.ON_RESUME -> notifications.checkAllowed()
             Lifecycle.Event.ON_DESTROY -> onDestroy()
             else -> Unit
         }
@@ -242,6 +253,7 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun isStarted(): Boolean =
         observedLifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
 
+    /** @suppress */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         (context.findActivity() as? androidx.activity.ComponentActivity)?.let { activity ->
@@ -253,8 +265,10 @@ class CrispChatboxView @JvmOverloads constructor(
         webView?.clientBridge?.let(::attachController)
         // Loads once started, if needed
         startStateEventCollection()
+        startSocketLifecycle()
     }
 
+    /** @suppress */
     override fun onDetachedFromWindow() {
         // Still attached until super is called
         updateChatOpened(isAttached = false)
@@ -268,6 +282,7 @@ class CrispChatboxView @JvmOverloads constructor(
         permissionManager.unregisterLaunchers()
         permissionManager.dismiss()
         cancelStateEventCollection()
+        cancelSocketLifecycle()
         cancelLoadingTimeout()
         // Scheduled again once attached, as still needing to load
         cancelWebViewCreation()
@@ -316,6 +331,7 @@ class CrispChatboxView @JvmOverloads constructor(
         if (!isChatOpened && isAttachedToWindow && isStarted()) {
             isChatOpened = true
             controller.notifyChatOpened()
+            notifications.onChatOpened(true)
         }
         true
     }
@@ -342,6 +358,7 @@ class CrispChatboxView @JvmOverloads constructor(
             if (isChatOpened) {
                 isChatOpened = false
                 controller.notifyChatClosed()
+                notifications.onChatOpened(false)
             }
         }
     }
@@ -443,6 +460,11 @@ class CrispChatboxView @JvmOverloads constructor(
         for (i in 0 until childCount) {
             val child = getChildAt(i)
             child.dispatchApplyWindowInsets(childViewInsets)
+        }
+
+        // Once ready, as set on ready, and the system bars may change afterwards
+        if (store.state.value is CrispChatboxState.Ready) {
+            webView?.fixSafeArea(edgeToEdge)
         }
 
         return insets
@@ -554,6 +576,20 @@ class CrispChatboxView @JvmOverloads constructor(
         removeCallbacks(webViewCreation)
     }
 
+    /**
+     * Hides the page from accessibility services (e.g. TalkBack) unless ready,
+     * while the loading or error views cover it. Android does not hide the views covered by others,
+     * so they would still read it, e.g. the previous session loaded during a handover
+     * (see [CrispChatboxNotifications.handOverIfNeeded]).
+     */
+    private fun updateWebViewAccessibility(webView: CrispWebView? = this.webView) {
+        webView?.importantForAccessibility = if (store.state.value is CrispChatboxState.Ready) {
+            IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        } else {
+            IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+    }
+
     // Null when the device has no WebView provider, creating one would crash (see CrispWebViewSupport)
     private fun createWebView(): CrispWebView? = try {
         CrispWebView(context).apply {
@@ -571,15 +607,24 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun addWebView(webView: CrispWebView) {
         // Below the native views
         addView(webView, 0)
+        updateWebViewAccessibility(webView)
         ViewCompat.requestApplyInsets(this)
         webView.clientBridge?.let {
             controllerDispatcher.attach(
                 CrispControllerDispatcher.Chatbox(
                     it,
                     store.config,
-                    store.state
+                    store.state,
+                    beforeReset = {
+                        store.config.value?.let { config -> beforeResetSession(config, it) }
+                    },
+                    // Still ready with the session not reset: registers its notifications again
+                    onResetFailed = {
+                        store.config.value?.let { config -> notifications.start(config, it) }
+                    },
                 ) { load() }
             )
+            notifications.attach(it)
         }
         if (isAttachedToWindow) {
             webView.clientBridge?.let(::attachController)
@@ -622,6 +667,21 @@ class CrispChatboxView @JvmOverloads constructor(
     internal val config: CrispConfig? get() = store.config.value
     private var pendingConfig: CrispConfig? = null
     private val sessions: CrispSessions by lazy { CrispSessions.from(context) }
+    // Not lazy: cleaned up in the background right away, so that the notification settings are migrated there,
+    // rather than on the main thread by the first read of the load (see CrispNotificationStore)
+    private val legacyStorage: CrispLegacyStorage = CrispLegacyStorage.from(context).also {
+        // Its notification settings first, which need the sessions and tokenIds it deletes,
+        // then their files, once migrated
+        it.cleanUpOnce { CrispNotificationStore.get(context).migrateLegacy() }
+    }
+    private val notifications = CrispChatboxNotifications(
+        context,
+        store,
+        permissionManager,
+        legacyStorage,
+        scope = { observedLifecycle?.coroutineScope },
+        timeout = { loadingTimeout },
+    )
     private val controllerDispatcher: CrispControllerDispatcher by lazy {
         CrispControllerDispatcher.get(
             context
@@ -662,6 +722,10 @@ class CrispChatboxView @JvmOverloads constructor(
             store.onError(CrispClientException.WebsiteMissing())
         } else {
             pendingConfig = config
+            // Unregisters the notifications of the session joined by the current page there first if needed,
+            // rather than loading it again to hand them over once replaced
+            val bridge = webView?.clientBridge
+            if (bridge != null && notifications.unregisterBeforeReplacing(config, bridge) { load() }) return
             load()
         }
     }
@@ -690,12 +754,32 @@ class CrispChatboxView @JvmOverloads constructor(
         // The page being replaced cannot be prepared anymore
         cancelSessionPreparation()
         store.onPageStarted()
+        cancelLoadingTimeout()
+        // The session whose notifications must be unregistered first, loading it again for a moment
+        val isHandingOver = notifications.handOverIfNeeded(
+            config,
+            webView,
+            onFinished = {
+                needsLoad = true
+                loadIfNeeded()
+            },
+            // Offline: retried on the next load, e.g. from the error view
+            onFailed = { error ->
+                webView?.clear()
+                store.onError(error)
+            },
+        )
+        if (isHandingOver) return
         val mustReset = sessions.onLoad(config)
         store.holdNextReady { prepareSessionThenReady(config, mustReset) }
+        // Not when reset, which removes it before reloading
+        val legacySessionId = if (mustReset) null else legacyStorage.sessionId(config)
+        legacySessionId?.let { removeLegacySessionOnceSaved(config.websiteId) }
         cancelLoadingTimeout()
         startLoadingTimeout()
         try {
-            (webView ?: throw CrispClientException.WebViewUnavailable()).load(config)
+            (webView ?: throw CrispClientException.WebViewUnavailable())
+                .load(legacySessionId?.let { config.copy(sessionId = it) } ?: config)
         } catch (e: CrispClientException) {
             cancelLoadingTimeout()
             store.onError(e)
@@ -703,13 +787,14 @@ class CrispChatboxView @JvmOverloads constructor(
     }
 
     private var loadingTimeoutJob: Job? = null
+    // How long the chatbox may take to be usable, to load, or to connect again before uploading
+    private val loadingTimeout: Duration
+        get() = if (context.isDebuggable) LOADING_TIMEOUT_DEBUG else LOADING_TIMEOUT_RELEASE
 
     private fun startLoadingTimeout() {
         val lifecycle = observedLifecycle ?: return
-        val timeoutDuration =
-            if (context.isDebuggable) LOADING_TIMEOUT_DEBUG else LOADING_TIMEOUT_RELEASE
         loadingTimeoutJob = lifecycle.coroutineScope.launch {
-            val readyState = withTimeoutOrNull(timeoutDuration) {
+            val readyState = withTimeoutOrNull(loadingTimeout) {
                 store.state.first { it is CrispChatboxState.Ready }
             }
             if (readyState == null) {
@@ -755,6 +840,7 @@ class CrispChatboxView @JvmOverloads constructor(
                 CrispControllerDispatcher.Result.DISPATCHED -> {
                     sessionPreparationJob = null
                     store.onPageFinished()
+                    notifications.start(config, bridge)
                 }
 
                 CrispControllerDispatcher.Result.RESET_PENDING -> resetSessionThenReload(
@@ -769,6 +855,7 @@ class CrispChatboxView @JvmOverloads constructor(
 
     private suspend fun resetSessionThenReload(config: CrispConfig, bridge: CrispClientBridge) {
         try {
+            beforeResetSession(config, bridge)
             bridge.reset()
             sessions.onSessionReset(config.websiteId)
             controllerDispatcher.onSessionReset(config)
@@ -784,12 +871,59 @@ class CrispChatboxView @JvmOverloads constructor(
             log(Level.WARN, LOG_TAG, "Cannot reset the session", e)
             sessionPreparationJob = null
             store.onPageFinished()
+            notifications.start(config, bridge)
         }
     }
 
     private fun cancelSessionPreparation() {
         sessionPreparationJob?.cancel()
         sessionPreparationJob = null
+        legacySessionRemovalJob?.cancel()
+        legacySessionRemovalJob = null
+        notifications.cancel()
+    }
+
+    /** Removes the restored session of the pre-3.x SDK once saved, see [removeLegacySessionOnceSaved] */
+    private var legacySessionRemovalJob: Job? = null
+
+    /**
+     * Removes the session of the pre-3.x SDK restored for [websiteId] once the Web client saved it,
+     * so that it is only restored once, but again if the page is replaced before (e.g. offline).
+     * Also stops the page from restoring it again, see [CrispWebView.clearSessionId].
+     *
+     * The Web client saves the session it joins when its socket connects, in the same `connect`
+     * dispatch as the log telling it is connected, so before it reaches [store].
+     */
+    private fun removeLegacySessionOnceSaved(websiteId: String) {
+        val scope = observedLifecycle?.coroutineScope ?: return
+        legacySessionRemovalJob = scope.launch {
+            store.isSocketConnected.first { it }
+            webView?.clearSessionId()
+            legacyStorage.removeSaved(websiteId)
+            legacySessionRemovalJob = null
+        }
+    }
+
+    /**
+     * Before resetting the session of [config][CrispConfig] loaded in the page of [bridge],
+     * stops registering its notifications, then unregisters them,
+     * and stops restoring its pre-3.x session, see [forgetLegacySession].
+     */
+    private suspend fun beforeResetSession(config: CrispConfig, bridge: CrispClientBridge) {
+        forgetLegacySession(config.websiteId)
+        notifications.beforeReset(config, bridge)
+    }
+
+    /**
+     * Before resetting the session of [websiteId], stops restoring the session of the pre-3.x SDK
+     * if not saved yet: neither in the page, which initializes again with it when resetting,
+     * nor when reloading.
+     */
+    private fun forgetLegacySession(websiteId: String) {
+        legacySessionRemovalJob?.cancel()
+        legacySessionRemovalJob = null
+        webView?.clearSessionId()
+        legacyStorage.remove(websiteId)
     }
 
     // endregion
@@ -811,6 +945,7 @@ class CrispChatboxView @JvmOverloads constructor(
                 // Launch state collection
                 launch {
                     store.state.collect { state ->
+                        updateWebViewAccessibility()
                         loadingView.fadeVisible(state is CrispChatboxState.Loading)
                         val isError = state is CrispChatboxState.Error
                         val isWebsiteMissing =
@@ -850,7 +985,9 @@ class CrispChatboxView @JvmOverloads constructor(
                                 event.y
                             )
 
-                            is CrispChatboxEvent.Upload -> uploadManager.showChooser(event.filePathCallback)
+                            is CrispChatboxEvent.Upload -> uploadManager.showChooser(
+                                event.filePathCallback?.afterSocketConnected()
+                            )
                         }
                     }
                 }
@@ -863,6 +1000,113 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun cancelStateEventCollection() {
         collectionJob?.cancel()
         collectionJob = null
+    }
+
+    // endregion
+
+    // region Socket
+
+    // Disconnects the Web socket when the app goes in background or offline,
+    // connects it back once in foreground and online again.
+    // Kept with the view, as the page keeps its socket when detached.
+    private val socketLifecycle = CrispSocketLifecycle(
+        connect = { webView?.clientBridge?.connectSocket() },
+        disconnect = { webView?.clientBridge?.disconnectSocket() }
+    )
+    private var socketJob: Job? = null
+
+    /**
+     * Starts following the app state, even once stopped (unlike states and events),
+     * to disconnect in background.
+     */
+    private fun startSocketLifecycle() {
+        val lifecycle = observedLifecycle ?: return
+        socketJob = lifecycle.coroutineScope.launch {
+            context.isAppInForegroundAndOnline()
+                .combine(store.state) { shouldConnect, state -> shouldConnect to state }
+                .collect { (shouldConnect, state) ->
+                    try {
+                        socketLifecycle.update(shouldConnect, state)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: JSEvaluationException.PageUnloaded) {
+                        // Replaced by another page, which connects on its own
+                    } catch (e: Exception) {
+                        val action = if (shouldConnect) "connect" else "disconnect"
+                        log(Level.WARN, LOG_TAG, "Cannot $action the socket", e)
+                    }
+                }
+        }
+    }
+
+    private fun cancelSocketLifecycle() {
+        socketJob?.cancel()
+        socketJob = null
+    }
+
+    /**
+     * Hands the chosen files to the page once its socket is connected,
+     * as the page drops them while disconnected,
+     * which it is when coming back from the activity that chose them (camera, files, etc.).
+     * Only the socket is needed, not the session to be joined again.
+     *
+     * Drops them if it cannot connect in time (e.g. when offline) or once destroyed,
+     * see [dropUpload].
+     * A canceled choice (`null`) is passed on right away,
+     * as the page cannot choose files again until told.
+     */
+    private fun ValueCallback<Array<out Uri?>?>.afterSocketConnected() =
+        ValueCallback<Array<out Uri?>?> { uris ->
+            if (uris == null) {
+                onReceiveValue(null)
+                return@ValueCallback
+            }
+            val scope = observedLifecycle?.coroutineScope
+            if (scope == null) {
+                dropUpload(uris, "the chatbox is destroyed")
+                return@ValueCallback
+            }
+            scope.launch {
+                // Whether the socket is connected, or not if it did not connect in time
+                val isConnected = try {
+                    withTimeoutOrNull(loadingTimeout) {
+                        socketLifecycle.connectNow()
+                        // connectSocket returns before connecting, so wait for it to be
+                        store.isSocketConnected.first { it }
+                    } ?: false
+                } catch (e: CancellationException) {
+                    dropUpload(uris, "the chatbox is destroyed")
+                    throw e
+                } catch (e: Exception) {
+                    dropUpload(uris, "the socket cannot connect", e)
+                    return@launch
+                }
+                if (isConnected) {
+                    onReceiveValue(uris)
+                } else {
+                    dropUpload(uris, "the socket did not connect in time")
+                }
+            }
+        }
+
+    /**
+     * Drops the chosen files, which the page would drop anyway while its socket is disconnected.
+     * Deletes those taken by the camera, and tells the page the choice is canceled,
+     * so that it can choose again.
+     */
+    private fun ValueCallback<Array<out Uri?>?>.dropUpload(
+        uris: Array<out Uri?>,
+        reason: String,
+        throwable: Throwable? = null
+    ) {
+        log(
+            Level.ERROR,
+            LOG_TAG,
+            "Cannot upload ${uris.size} file(s), as $reason",
+            throwable
+        )
+        uploadManager.deleteTempFiles(uris)
+        onReceiveValue(null)
     }
 
     // endregion

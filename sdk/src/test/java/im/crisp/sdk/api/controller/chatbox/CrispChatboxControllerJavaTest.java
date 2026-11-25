@@ -1,4 +1,6 @@
-package im.crisp.sdk.api;
+package im.crisp.sdk.api.controller.chatbox;
+
+import im.crisp.sdk.api.controller.CrispSessionController;
 
 /**
  * Checks at compile time that Java sees the callback overloads, with optional completions. Never

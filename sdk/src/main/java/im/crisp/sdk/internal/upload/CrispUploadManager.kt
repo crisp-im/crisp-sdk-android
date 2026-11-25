@@ -36,6 +36,8 @@ internal class CrispUploadManager(
         }
     }
 
+    private val fileProviderAuthority = "${context.packageName}.im.crisp.sdk.fileprovider"
+
     private var activeCallback: ValueCallback<Array<out Uri?>?>? = null
     private var pendingCameraUri: Uri? = null
     private var pendingCameraFile: File? = null
@@ -210,9 +212,8 @@ internal class CrispUploadManager(
             return
         }
 
-        val authority = "${context.packageName}.im.crisp.sdk.fileprovider"
         val uri = runCatching {
-            FileProvider.getUriForFile(context, authority, file)
+            FileProvider.getUriForFile(context, fileProviderAuthority, file)
         }.getOrNull()
 
         if (uri == null) {
@@ -225,6 +226,18 @@ internal class CrispUploadManager(
         pendingCameraUri = uri
 
         launcher.launch(uri)
+    }
+
+    /**
+     * Deletes those of [uris] taken by the camera, e.g. when dropped instead of handed to the page.
+     * The ones chosen in the library or files belong to the user, and are left as is.
+     */
+    fun deleteTempFiles(uris: Array<out Uri?>) {
+        uris.filterNotNull()
+            .filter { it.authority == fileProviderAuthority }
+            .forEach { runCatching {
+                context.contentResolver.delete(it, null, null)
+            } }
     }
 
     private fun createTempMediaFile(suffix: String, prefix: String): File? {

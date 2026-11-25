@@ -1,4 +1,4 @@
-package im.crisp.sdk.api
+package im.crisp.sdk.api.controller.chatbox
 
 import im.crisp.sdk.model.Message
 
@@ -132,7 +132,8 @@ interface CrispEventCallbacks {
 
     /**
      * The Web client finished loading the session [sessionId]. Called again on each reload,
-     * e.g. after a retry, or when the hosting `Activity` is recreated.
+     * e.g. after a retry, or when the hosting `Activity` is recreated,
+     * and with the new session when it is reset, e.g. by an operator.
      */
     fun onSessionLoaded(sessionId: String) {}
 
@@ -144,9 +145,9 @@ interface CrispEventCallbacks {
 }
 
 /**
- * Creates [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks] invoking the given lambdas, the `null` ones being ignored.
+ * Creates [CrispEventCallbacks][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks] invoking the given lambdas, the `null` ones being ignored.
  *
- * Java can implement [CrispEventCallbacks][im.crisp.sdk.api.CrispEventCallbacks] instead.
+ * Java can implement [CrispEventCallbacks][im.crisp.sdk.api.controller.chatbox.CrispEventCallbacks] instead.
  */
 @JvmSynthetic
 fun CrispEventCallbacks(

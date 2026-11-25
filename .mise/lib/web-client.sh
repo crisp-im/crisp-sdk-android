@@ -332,7 +332,8 @@ window.CrispClient = {
 onInterfaceAction((payload) => sendEvent('onInterfaceAction', payload))
 onInterfaceLifecycle((payload) => sendEvent('onInterfaceLifecycle', payload))
 on("message:received", (payload) => sendEvent("onMessageReceived", payload))
-on("message:sent", (payload) => sendEvent("onMessageSent", payload))"""
+on("message:sent", (payload) => sendEvent("onMessageSent", payload))
+on("session:loaded", (sessionId) => sendEvent("onSessionLoaded", { session_id: sessionId }))"""
     }
 }
 EOF

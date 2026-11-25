@@ -58,4 +58,48 @@ class WebViewBridgeTest {
         assertTrue(rejected.await().exceptionOrNull() is JSEvaluationException.PageUnloaded)
         assertEquals("2", next.await())
     }
+
+    /** Posts the event [channel] as the page [page] does, see `sendEvent` in `index.html`. */
+    private fun WebViewBridge.event(page: String?, channel: String = "onTest") = onMessage(
+        if (page == null) {
+            """{"kind":"event","channel":"$channel","body":"{}"}"""
+        } else {
+            """{"kind":"event","page":"$page","channel":"$channel","body":"{}"}"""
+        },
+    )
+
+    private fun recordEvents(): MutableList<String> = mutableListOf<String>().also { received ->
+        bridge.events.register("onTest", JSEventHandler.of { received += "onTest" })
+    }
+
+    @Test fun `events of the page started are dispatched`() {
+        val received = recordEvents()
+        val page = bridge.startPage()
+
+        bridge.event(page)
+
+        assertEquals(listOf("onTest"), received)
+    }
+
+    @Test fun `events of the page replaced are dropped`() {
+        val received = recordEvents()
+        val replaced = bridge.startPage()
+        bridge.startPage()
+
+        // Still sent by the page replaced, e.g. its session joined
+        bridge.event(replaced)
+
+        assertTrue(received.isEmpty())
+    }
+
+    @Test fun `events are dropped once the page ended or without page`() {
+        val received = recordEvents()
+        val page = bridge.startPage()
+        bridge.event(null)
+        bridge.endPage()
+
+        bridge.event(page)
+
+        assertTrue(received.isEmpty())
+    }
 }

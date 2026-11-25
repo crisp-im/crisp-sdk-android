@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // Notifications
+    //id("com.google.gms.google-services")
 }
 
 android {
@@ -35,18 +37,24 @@ android {
     }
 }
 
-configurations.configureEach {
+// Release testing
+/*configurations.configureEach {
     // Re-downloads changing modules (`im.crisp:crisp-sdk` below) on each build, to test re-uploads of the same version
     resolutionStrategy.cacheChangingModulesFor(0, TimeUnit.SECONDS)
-}
+}*/
 
 dependencies {
     // Develop
     implementation(project(":sdk"))
     // Release testing
-    /*implementation("im.crisp:crisp-sdk:3.0.0beta1") {
+    /*implementation("im.crisp:crisp-sdk:3.0.0beta2") {
         isChanging = true
     }*/
+    // Notifications
+    /*
+    implementation(platform("com.google.firebase:firebase-bom:35.2.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    */
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
