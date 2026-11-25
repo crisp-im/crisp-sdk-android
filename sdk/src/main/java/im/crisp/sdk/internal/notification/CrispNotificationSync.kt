@@ -205,16 +205,17 @@ internal class CrispNotificationSync(
      * Before the page resets its session, unregisters the token registered on it, if any, then forgets it.
      *
      * Waits for the session to be joined, up to [timeout].
-     * Once elapsed, the session is reset anyway, its token being left on it.
      *
-     * Whenever the token is not unregistered (not joined in time, canceled, e.g. by the loading timeout of the
-     * chatbox, which elapses first for a reset made before it becomes ready, or the page replaced meanwhile,
-     * [JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded]
-     * thrown), the recorded session of its `tokenId` is [revoked][CrispNotificationPolicy.revoke],
-     * not to show its notifications until the next session joined replaces it.
-     * Its token is kept, for the next page to unregister it before resetting the session, as the reset stays requested.
+     * Whenever the token is not unregistered, the recorded session of its `tokenId` is
+     * [revoked][CrispNotificationPolicy.revoke], keeping its token, not to show its notifications meanwhile.
      * Already revoked for a reset requested through a controller, but not for one made on load
-     * (a website loaded without its previous `tokenId`), retried after failing.
+     * (a website loaded without its previous `tokenId`). Then:
+     * - not joined in time: returns, and the caller resets the session anyway, its token being left on it.
+     *   The next session joined replaces it in the record, as unreachable (see [CrispNotificationPolicy.onSessionLoaded]),
+     * - canceled (e.g. by the loading timeout of the chatbox,
+     *   which elapses first for a reset made before it becomes ready) or the page replaced meanwhile
+     *   ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded] thrown):
+     *   the session is not reset, and the reset stays requested, so the next page unregisters its token before resetting it.
      */
     suspend fun beforeReset(config: CrispConfig, bridge: CrispClientBridge, timeout: Duration) {
         if (store.record(config.websiteId).session?.notificationId == null) return
@@ -231,7 +232,7 @@ internal class CrispNotificationSync(
             store.update(config.websiteId) { record -> CrispNotificationPolicy.onBeforeReset(record, sessionId).first }
             isUnregistered = true
         } finally {
-            // Only once not unregistered on the Web, as the other updates of the record
+            // Only once not unregistered on the Web (timed out, canceled or the page replaced)
             if (!isUnregistered) {
                 store.update(config.websiteId) { record -> CrispNotificationPolicy.revoke(record, config.tokenId) }
             }

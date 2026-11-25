@@ -149,7 +149,8 @@ internal class CrispClientBridge(private val evaluator: JSEvaluator, val events:
         events.register("onMessageReceived", handler)
 
     /**
-     * The session joined by the page, from its `session:loaded` event, `null` in static mode.
+     * The session joined by the page, from its `session:loaded` event, `null` in static mode
+     * (after a socket rescue, see `sessionId` of [CrispChatboxStore][im.crisp.sdk.internal.chatbox.CrispChatboxStore]).
      * Wrapped in an object, as `sendEvent` sends `{}` for a missing payload.
      */
     fun onSessionLoaded(handler: (String?) -> Unit) =

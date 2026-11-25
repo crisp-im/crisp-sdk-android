@@ -80,7 +80,9 @@ internal class CrispChatboxStore(
      * Not emitted again when the socket reconnects, joining it again,
      * but emitted again with the new session when the Web client resets it in the page
      * (e.g. purged by an operator, `session:request:purge`), without loading another page.
-     * `null` in static mode (its socket disabled), as there is no session.
+     * `null` in static mode, as there is no session: the Web client switches to it (`runStatic`)
+     * once its main socket cannot connect and falls back to the rescue one (`socket:rescued`),
+     * if its interface is not created yet. Never on start, as `<crisp-widget>` sets `lock_maximized`.
      *
      * It can be emitted before or after the [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY]
      * interface lifecycle event: after it for a session restored (the chat is initialized from its state first),
