@@ -10,12 +10,8 @@ import im.crisp.sdk.internal.environment.Level
 import im.crisp.sdk.internal.environment.log
 import kotlin.time.Duration
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -49,8 +45,6 @@ internal class CrispNotificationSync(
     },
     // The FID or FCM token of the device
     private val fetchToken: suspend () -> String? = { CrispFirebase.fetchToken(context) },
-    // Where the token is fetched, outliving the page, see onPageLoaded
-    private val fetchScope: () -> CoroutineScope = { tokenFetchScope },
     private val spacing: CrispNotificationSpacing = CrispNotificationSpacing.instance,
     // Removes the notification shown for a website
     private val cancelShown: (websiteId: String) -> Unit = { CrispNotificationDisplay.cancel(context, it) },
@@ -88,7 +82,7 @@ internal class CrispNotificationSync(
      *
      * Runs as long as the page, from the time it starts.
      * Registers the token last saved right away, without waiting for Firebase, which does not time out (e.g. offline).
-     * The token is fetched meanwhile, saved once fetched, and registered by [followDeviceToken] if it changed.
+     * The token is fetched meanwhile by [refreshToken], and registered by [followDeviceToken] if it changed.
      * It usually did not, as `onNewToken` and `onRegistered` save it, even while no chatbox is loaded.
      */
     suspend fun onPageLoaded(config: CrispConfig, bridge: CrispClientBridge) {
@@ -104,10 +98,7 @@ internal class CrispNotificationSync(
         // without fetching the FID or FCM token
         if (!record.enabled && record.session?.notificationId == null) return
         val deviceToken = if (record.enabled && canShowNotifications(config.websiteId)) {
-            // Refreshed, as the app may not pass it (e.g. its own service not calling onNewToken),
-            // and it registers the FID with FCM (see CrispFirebase.fetchToken).
-            // Outliving the page, as Firebase does not call onNewToken or onRegistered again for a token it has
-            fetchScope().launch { fetchToken()?.let { store.deviceToken = it } }
+            // Fetched meanwhile by refreshToken
             val token = store.deviceToken
             if (token == null && record.session?.sessionId == sessionId) {
                 // Unknown rather than not allowed.
@@ -125,6 +116,25 @@ internal class CrispNotificationSync(
             null
         }
         applyPlan(config, bridge, sessionId, deviceToken)
+    }
+
+    /**
+     * Once the page of [config][CrispConfig] joined its session,
+     * fetches the FID or FCM token of the device and saves it,
+     * if notifications can be shown for its website (enabled, Firebase set up and allowed by the user).
+     * [followDeviceToken] then registers it if it changed.
+     *
+     * Fetched on each sync, as the app may not pass it (e.g. its own service not calling `onNewToken`),
+     * and as fetching registers the FID with FCM (see [CrispFirebase.fetchToken]).
+     *
+     * Run alongside [onPageLoaded], which registers the token last saved without waiting for it,
+     * and canceled with it: Firebase does not time out (e.g. offline), so a fetch never outlives its sync.
+     * Its result is then dropped, and fetched again by the next sync (cached by Firebase).
+     */
+    suspend fun refreshToken(config: CrispConfig) {
+        chatboxStore.awaitJoined()
+        if (!store.record(config.websiteId).enabled || !canShowNotifications(config.websiteId)) return
+        fetchToken()?.let { store.deviceToken = it }
     }
 
     /**
@@ -390,9 +400,6 @@ internal class CrispNotificationSync(
 
     companion object {
         private const val LOG_TAG = "CrispNotifications"
-
-        /** The token fetches, process-wide so that they complete once their page is replaced or timed out. */
-        private val tokenFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
         // Checked once per process, see warnIfNoMessagingService
         private val isNoServiceChecked = AtomicBoolean(false)

@@ -54,8 +54,6 @@ class CrispNotificationSyncTest {
         store,
         canShowNotifications = { canShow },
         fetchToken = { fetches++; delay(fetchDuration); fcmToken },
-        // Read when fetching, so once the test started
-        fetchScope = { scope.backgroundScope },
         spacing = spacing,
     )
     private val sync = sync()
@@ -96,6 +94,7 @@ class CrispNotificationSyncTest {
     @Test fun `nothing is done nor fetched for a website without notifications`() = test {
         joined()
 
+        sync.refreshToken(config)
         sync.onPageLoaded(config, bridge)
 
         assertTrue(calls.isEmpty())
@@ -121,6 +120,7 @@ class CrispNotificationSyncTest {
         canShow = false
         joined()
 
+        sync.refreshToken(config)
         sync.onPageLoaded(config, bridge)
 
         assertEquals(listOf("unregisterNotification:fcm_1"), calls.map { it.first })
@@ -204,6 +204,8 @@ class CrispNotificationSyncTest {
         fetchDuration = Duration.INFINITE
         joined()
 
+        // Alongside, as CrispChatboxNotifications.syncSession does
+        val fetch = launch { sync.refreshToken(config) }
         sync.onPageLoaded(config, bridge)
         // Started meanwhile, never ending
         runCurrent()
@@ -211,6 +213,46 @@ class CrispNotificationSyncTest {
         assertEquals(0L, currentTime)
         assertEquals(1, fetches)
         assertEquals(listOf("registerNotification:fcm_saved"), calls.map { it.first })
+        // Canceled with its sync
+        fetch.cancel()
+    }
+
+    @Test fun `the token is fetched once the session is joined, only if notifications can be shown`() = test {
+        store.update("website") { it.copy(enabled = true) }
+
+        val fetch = launch { sync.refreshToken(config) }
+        runCurrent()
+        assertEquals(0, fetches)
+
+        joined()
+        fetch.join()
+        assertEquals(1, fetches)
+        assertEquals("fcm_1", store.deviceToken)
+
+        canShow = false
+        sync.refreshToken(config)
+        assertEquals(1, fetches)
+    }
+
+    @Test fun `a fetch canceled with its sync is dropped, then made again by the next one`() = test {
+        store.deviceToken = "fcm_1"
+        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
+        fcmToken = "fcm_2"
+        fetchDuration = 20.seconds
+        joined()
+
+        // E.g. synced again once resumed, or the chatbox closed, while fetching
+        val fetch = launch { sync.refreshToken(config) }
+        advanceTimeBy(10.seconds)
+        fetch.cancel()
+        advanceUntilIdle()
+        assertEquals(1, fetches)
+        assertEquals("fcm_1", store.deviceToken)
+
+        sync.refreshToken(config)
+
+        assertEquals(2, fetches)
+        assertEquals("fcm_2", store.deviceToken)
     }
 
     @Test fun `a token unknown when loaded is registered once fetched`() = test {
@@ -218,16 +260,17 @@ class CrispNotificationSyncTest {
         fetchDuration = 20.seconds
         joined()
 
+        val fetch = launch { sync.refreshToken(config) }
         sync.onPageLoaded(config, bridge)
         // Recorded without token, as unknown yet
         assertTrue(calls.isEmpty())
         assertEquals(CrispNotificationSession("session_a", "user_a"), store.record("website").session)
         val job = launch { sync.followDeviceToken(config, bridge) }
-        // Not advanceUntilIdle, which ignores the background scope the token is fetched in
         advanceTimeBy(25.seconds)
         runCurrent()
 
         assertEquals("fcm_1", store.deviceToken)
+        assertTrue(fetch.isCompleted)
         assertEquals(listOf("registerNotification:fcm_1"), calls.map { it.first })
         assertEquals(registered, store.record("website").session)
         job.cancel()
@@ -240,6 +283,7 @@ class CrispNotificationSyncTest {
         fcmToken = "fcm_2"
         joined()
 
+        launch { sync.refreshToken(config) }
         sync.onPageLoaded(config, bridge)
         val job = launch { sync.followDeviceToken(config, bridge) }
         advanceTimeBy(10.seconds)

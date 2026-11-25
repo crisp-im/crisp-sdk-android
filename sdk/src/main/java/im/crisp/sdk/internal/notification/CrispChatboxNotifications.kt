@@ -318,6 +318,8 @@ internal class CrispChatboxNotifications(
         try {
             // Scoped, so that their exceptions are caught below
             coroutineScope {
+                // Alongside, as the token saved is registered without waiting for it, and canceled with the sync
+                launch { sync.refreshToken(config) }
                 sync.onPageLoaded(config, bridge)
                 launch { sync.followDeviceToken(config, bridge) }
                 prompter.promptWhenNeeded(config, bridge, prompt)

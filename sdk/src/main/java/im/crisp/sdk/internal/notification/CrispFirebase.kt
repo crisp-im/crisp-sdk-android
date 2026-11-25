@@ -86,10 +86,10 @@ internal object CrispFirebase {
      * - its Firebase installation ID once registered with FCM, if [enabled][isInstallationIdEnabled],
      * - otherwise its FCM registration token.
      *
-     * Firebase does not time out (e.g. offline), so the caller does.
+     * Firebase does not time out (e.g. offline), so callers do not wait for it and cancel it instead, see
+     * [CrispNotificationSync.refreshToken][im.crisp.sdk.internal.notification.CrispNotificationSync.refreshToken].
      *
-     * Never throws but to cancel, as it runs in a scope without exception handler, see
-     * [CrispNotificationSync][im.crisp.sdk.internal.notification.CrispNotificationSync.onPageLoaded].
+     * Never throws but to cancel, not to cancel the sync it runs alongside.
      */
     suspend fun fetchToken(context: Context): String? = try {
         val messaging = FirebaseMessaging.getInstance()
