@@ -158,6 +158,21 @@ class CrispChatboxNotificationsTest {
         assertEquals(listOf("registerNotification:fcm_1"), calls)
     }
 
+    @Test fun `notifications enabled while loaded are not synced again once resumed`() = runTest {
+        val notifications = notifications()
+        notifications.start(config, bridge)
+        joined()
+        settle()
+
+        enable()
+        settle()
+        notifications.checkAllowed()
+        settle()
+
+        assertEquals(listOf("registerNotification:fcm_1"), calls)
+        assertEquals(1, fetches)
+    }
+
     @Test fun `the prompt of a session is kept while synced again, not to forget a message sent`() = runTest {
         enable()
         canShow = false

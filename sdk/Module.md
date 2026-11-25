@@ -324,7 +324,7 @@ The chatbox notifies the user of the replies of your operators with [Firebase Cl
       </application>
       ```
       That's it: tapping a notification opens the chatbox in a modal bottom sheet, above the current screen of your app, or its launcher `Activity` if it is not running.\
-      On Android 13 and later, the chatbox asks the user to allow notifications once they sent a message.
+      Once they sent a message, the chatbox asks the user to allow notifications: on Android 13 and later, with the notification permission, or in the notification settings of your app if they turned them off.
    2. Otherwise, pass them from your own `FirebaseMessagingService`, declared the same way instead:
       ```kotlin
       override fun onMessageReceived(message: RemoteMessage) {

@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -46,22 +47,20 @@ internal class CrispNotificationPrompter(
 ) {
     /**
      * Shows a message prompting the user to enable notifications,
-     * if notifications are enabled for the website but not allowed by the user yet (or its channel turned off),
+     * if notifications are enabled for the website but not allowed by the user
+     * (the `POST_NOTIFICATIONS` permission from Android 13, or turned off for the app or its channel),
      * and the user did not answer it on this session: below the identity request of the Web client,
      * or standalone once the user sent a message, see [CrispNotificationPrompt] (told of the messages sent).
-     *
-     * Only from Android 13, where notifications need the `POST_NOTIFICATIONS` runtime permission.
      *
      * Runs as long as the page, until shown or not needed anymore,
      * checking the page every [CrispNotificationPrompt.POLLING] while its session is joined.
      */
     suspend fun promptWhenNeeded(config: CrispConfig, bridge: CrispClientBridge, prompt: CrispNotificationPrompt) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         // First, not to check Firebase nor the permission (logging errors) for an app not using notifications.
         // Prompted again once enabled, as the sync restarts
         if (!store.record(config.websiteId).enabled) return
         if (!CrispFirebase.isAvailable(context)) return
-        if (!isPermissionDeclared()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isPermissionDeclared()) {
             if (isUndeclaredLogged.compareAndSet(false, true)) {
                 log(
                     Level.ERROR,
@@ -101,20 +100,24 @@ internal class CrispNotificationPrompter(
 
     /**
      * The recorded session of the joined [sessionId] if the prompt can be shown,
-     * not answered, and notifications not allowed yet or the channel of the website turned off.
+     * not answered, and notifications not allowed: the permission not granted (from Android 13),
+     * or notifications turned off for the app or the channel of the website.
      */
     private fun promptableSession(config: CrispConfig, sessionId: String): CrispNotificationSession? {
         val record = store.record(config.websiteId)
         val session = record.session?.takeIf { it.sessionId == sessionId } ?: return null
-        val isAllowed = isPermissionGranted() && CrispNotificationDisplay.isChannelEnabled(context, config.websiteId)
+        // Not granted makes notifications disabled from Android 13
+        val isAllowed = CrispNotificationDisplay.areEnabled(context) &&
+            CrispNotificationDisplay.isChannelEnabled(context, config.websiteId)
         return session.takeIf { record.enabled && !it.promptAnswered && !it.revoked && !isAllowed }
     }
 
     /**
      * Handles the choice of the user in the prompt, asking for the permission if accepted,
      * then calling [onGranted] (e.g. to register the `notificationId`).
-     * If already granted, the channel of the website is turned off, so the notification settings of the app
-     * are opened instead, checked again once the chatbox is resumed.
+     * If already granted (always before Android 13), notifications are turned off for the app or the channel
+     * of the website, so the notification settings of the app are opened instead,
+     * checked again once the chatbox is resumed.
      *
      * Right away, even while the socket is disconnected: the choices of the prompt have a handler,
      * so the Web client does not update the message on the Crisp servers
@@ -156,11 +159,15 @@ internal class CrispNotificationPrompter(
     /**
      * Opens the notification settings of the app, listing the channel of each website,
      * as the Settings button of the permission request does.
+     * Before Android 8, which has no such screen, the details of the app, linking to its notification settings.
      */
-    @SuppressLint("InlinedApi") // Only prompted from Android 13, see promptWhenNeeded
     private fun openNotificationSettings() {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        }
         try {
             context.findActivity()?.startActivity(intent)
                 ?: context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -60,9 +61,6 @@ internal class CrispChatboxNotifications(
 
     private val prompter: CrispNotificationPrompter by lazy(createPrompter)
 
-    /** The config of the page whose notifications are registered, see [start] */
-    private var startedConfig: CrispConfig? = null
-
     /** Loads the session of the notifications to unregister before the chatbox one, see [handOverIfNeeded] */
     private var handoverJob: Job? = null
 
@@ -70,13 +68,13 @@ internal class CrispChatboxNotifications(
     private var notificationJob: Job? = null
 
     /**
-     * Whether the app can show the notifications of the website, checked again once resumed,
-     * as the user can allow them outside of the chatbox (or turn the channel of the website on or off),
-     * e.g. in the system settings or from a permission request of the app.
+     * Incremented to check again whether the app can show the notifications of the website (see [start]),
+     * e.g. once resumed, as the user can allow them outside of the chatbox (or turn the channel of the website
+     * on or off), e.g. in the system settings or from a permission request of the app.
      * Unlike the camera or microphone, asked when needed,
      * the token is only registered once loaded otherwise.
      */
-    private val notificationsAllowed = MutableStateFlow(false)
+    private val allowedChecks = MutableStateFlow(0)
 
     /**
      * Whether the chat is shown to the user (see [onChatOpened]),
@@ -107,8 +105,7 @@ internal class CrispChatboxNotifications(
 
     /** Checks again whether notifications are allowed, registering or unregistering the token if it changed. */
     fun checkAllowed() {
-        val config = startedConfig ?: return
-        notificationsAllowed.value = sync.canShow(config)
+        allowedChecks.update { it + 1 }
     }
 
     /** Stops what was done for the page replaced. */
@@ -122,7 +119,6 @@ internal class CrispChatboxNotifications(
     private fun stop() {
         notificationJob?.cancel()
         notificationJob = null
-        startedConfig = null
     }
 
     // region Handover
@@ -268,7 +264,7 @@ internal class CrispChatboxNotifications(
      *
      * Again for each session the page joins (e.g. reset in the page, purged by an operator,
      * see [CrispChatboxStore.sessionId]), once notifications are allowed or blocked meanwhile
-     * (see [notificationsAllowed]), and once enabled or disabled for the website
+     * (checked again by [checkAllowed]), and once enabled or disabled for the website
      * ([CrispNotifications.setEnabled][im.crisp.sdk.api.notification.CrispNotifications.setEnabled]),
      * canceling what was done for the previous one.
      *
@@ -277,8 +273,6 @@ internal class CrispChatboxNotifications(
     fun start(config: CrispConfig, bridge: CrispClientBridge) {
         val scope = scope() ?: return
         notificationJob?.cancel()
-        startedConfig = config
-        notificationsAllowed.value = sync.canShow(config)
         notificationJob = scope.launch {
             // The prompt of the session joined, kept while syncSession restarts for it
             // (e.g. notifications allowed meanwhile), not to forget a message sent
@@ -300,10 +294,13 @@ internal class CrispChatboxNotifications(
             }
             combine(
                 store.sessionId.filterNotNull(),
-                notificationsAllowed,
                 sync.enabledChanges(config),
-                ::Triple,
-            )
+                allowedChecks,
+            ) { sessionId, isEnabled, _ ->
+                // Allowed checked along enabled, so that enabling them syncs once, not again once resumed.
+                // Only while enabled, not to check Firebase for an app not using notifications (see canShow)
+                Triple(sessionId, isEnabled, isEnabled && sync.canShow(config))
+            }
                 .distinctUntilChanged()
                 .collectLatest { (sessionId, _, _) -> syncSession(config, bridge, promptOf(sessionId)) }
         }
