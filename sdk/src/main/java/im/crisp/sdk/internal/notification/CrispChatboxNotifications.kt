@@ -175,6 +175,8 @@ internal class CrispChatboxNotifications(
      * which also blocks the new sessions), [onFailed] fails the load, keeping the previous session
      * to hand it over on the next load (e.g. once retried): [config][CrispConfig] could not be joined either,
      * and once loaded, the previous session could not be reached anymore.
+     * Also if its token is not unregistered in time (e.g. a page not responding),
+     * the whole handover being timed out, as the chatbox stays loading meanwhile, without its loading timeout.
      * So the previous session never prevents loading [config][CrispConfig] once a session can be joined:
      * it is then forgotten, unregistered if joined, see [CrispNotificationSync.handOver].
      *
@@ -228,7 +230,7 @@ internal class CrispChatboxNotifications(
         handoverJob = scope.launch {
             // `null` once failed unexpectedly, the previous session being forgotten
             val isJoined = try {
-                sync.handOver(config, previous, bridge, timeout())
+                withTimeoutOrNull(timeout()) { sync.handOver(config, previous, bridge, store.awaitJoined()) } != null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: JSEvaluationException.PageUnloaded) {
@@ -245,6 +247,11 @@ internal class CrispChatboxNotifications(
             // First, not to cancel this job while loading
             handoverJob = null
             if (isJoined == false) {
+                log(
+                    Level.WARN,
+                    LOG_TAG,
+                    "Previous session not joined or not unregistered in time, handed over on next load",
+                )
                 onFailed(if (isOnline()) CrispClientException.LoadingTimeout() else CrispClientException.Offline())
             } else {
                 onFinished()

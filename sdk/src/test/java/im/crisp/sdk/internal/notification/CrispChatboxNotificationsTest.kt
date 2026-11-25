@@ -10,8 +10,10 @@ import im.crisp.sdk.internal.chatbox.CrispLegacyStorage
 import im.crisp.sdk.internal.chatbox.FakeSharedPreferences
 import im.crisp.sdk.internal.permission.CrispPermissionManager
 import im.crisp.sdk.internal.webview.CrispClientException
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -41,12 +43,15 @@ class CrispChatboxNotificationsTest {
     private val dismissed = mutableListOf<String>()
     // Whether the page is replaced, its calls failing
     private var isUnloaded = false
+    // How long the page takes to answer a call, e.g. a page not responding
+    private var callDuration = Duration.ZERO
     private val bridge = CrispClientBridge(
         { script ->
             if (isUnloaded) throw JSEvaluationException.PageUnloaded()
             Regex("""CrispClient\.(\w+Notification)\("([^"]*)"""").find(script)?.let {
                 calls += "${it.groupValues[1]}:${it.groupValues[2]}"
             }
+            delay(callDuration)
             "null"
         },
         JSEventBus(),
@@ -306,6 +311,21 @@ class CrispChatboxNotificationsTest {
         advanceTimeBy(timeout + 1.seconds)
         runCurrent()
 
+        assertTrue(failures.single() is CrispClientException.LoadingTimeout)
+        assertEquals(0, finished)
+        assertEquals(previous, store.record("website").session)
+    }
+
+    @Test fun `not unregistered in time, the load fails, keeping the previous session`() = runTest {
+        store.update("website") { CrispNotificationRecord(enabled = true, session = previous) }
+        callDuration = timeout * 2
+
+        notifications().handOver()
+        joined("session_a")
+        advanceTimeBy(timeout + 1.seconds)
+        runCurrent()
+
+        assertEquals(listOf("unregisterNotification:fcm_1"), calls)
         assertTrue(failures.single() is CrispClientException.LoadingTimeout)
         assertEquals(0, finished)
         assertEquals(previous, store.record("website").session)

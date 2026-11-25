@@ -268,39 +268,29 @@ internal class CrispNotificationSync(
     }
 
     /**
-     * Hands the device over from [previous][CrispNotificationSession].
-     * Once the page loading it again joins its session, unregisters its token there, then forgets it.
+     * Hands the device over from [previous][CrispNotificationSession],
+     * once the page loading it again joined [sessionId], unregisters its token there, then forgets it.
      * If the page joined another session, [previous] cannot be reached anymore, so it is forgotten too.
      * That is also the case of an unknown `sessionId` injected (e.g. of the pre-3.x SDK):
      * the servers do not join it, and the Web client creates another session right away.
      *
-     * If no session is joined within [timeout], [previous] is kept, to hand it over on the next load:
-     * the page cannot join any session (e.g. offline, in background, or blocked, which also blocks the new sessions,
-     * whatever their `tokenId`), so the session loaded next could not be joined either.
-     *
-     * Kept too if the page is replaced meanwhile
-     * ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown).
-     *
-     * Returns whether the page joined a session.
+     * Kept if canceled before unregistering (e.g. timed out, see [CrispChatboxNotifications.handOverIfNeeded]),
+     * or if the page is replaced meanwhile
+     * ([JSEvaluationException.PageUnloaded][im.crisp.sdk.internal.bridge.js.JSEvaluationException.PageUnloaded], thrown),
+     * to hand it over on the next load.
      */
     suspend fun handOver(
         config: CrispConfig,
         previous: CrispNotificationSession,
         bridge: CrispClientBridge,
-        timeout: Duration,
-    ): Boolean {
-        val sessionId = withTimeoutOrNull(timeout) { chatboxStore.awaitJoined() }
-        if (sessionId == null) {
-            log(Level.WARN, LOG_TAG, "No session joined in time, the previous session will be handed over on next load")
-            return false
-        }
+        sessionId: String,
+    ) {
         // Forgotten once unregistered, so that it is handed over again if the page is replaced before
         val token = CrispNotificationPolicy.onHandoverLoaded(store.record(config.websiteId), previous, sessionId).second
         token?.let { unregister(bridge, sessionId, it) } ?: logUnreachable()
         store.update(config.websiteId) { record ->
             CrispNotificationPolicy.onHandoverLoaded(record, previous, sessionId).first
         }
-        return true
     }
 
     /**

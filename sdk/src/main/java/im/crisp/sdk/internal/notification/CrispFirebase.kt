@@ -109,7 +109,12 @@ internal object CrispFirebase {
     } catch (e: LinkageError) {
         // firebase-messaging is compile-only, so its version is not enforced:
         // e.g. register() is missing before 25.1.0, while the app enables the installation ID
-        log(Level.ERROR, LOG_TAG, "Cannot fetch the FCM token: firebase-messaging 25.1.2 or later is required", e)
+        log(
+            Level.ERROR,
+            LOG_TAG,
+            "Cannot fetch the FCM token: firebase-messaging 25.1.0 or later is required (25.1.2 or later recommended)",
+            e,
+        )
         null
     } catch (e: Exception) {
         log(Level.WARN, LOG_TAG, "Cannot fetch the FCM token", e)

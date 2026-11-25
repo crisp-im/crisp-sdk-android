@@ -484,11 +484,8 @@ class CrispNotificationSyncTest {
 
     @Test fun `the handover unregisters the token from the recorded session joined, then forgets it`() = test {
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
-        joined()
+        sync.handOver(CrispConfig("website", "user_b"), registered, bridge, "session_a")
 
-        val isJoined = sync.handOver(CrispConfig("website", "user_b"), registered, bridge, 5.seconds)
-
-        assertTrue(isJoined)
         assertEquals(listOf("unregisterNotification:fcm_1"), calls.map { it.first })
         assertNull(store.record("website").session)
         assertNull(sync.handoverFrom(CrispConfig("website", "user_b")))
@@ -496,24 +493,10 @@ class CrispNotificationSyncTest {
 
     @Test fun `a handover joining another session does not unregister there, and forgets it`() = test {
         store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
-        joined("session_other")
+        sync.handOver(CrispConfig("website", "user_b"), registered, bridge, "session_other")
 
-        val isJoined = sync.handOver(CrispConfig("website", "user_b"), registered, bridge, 5.seconds)
-
-        assertTrue(isJoined)
         assertTrue(calls.isEmpty())
         assertNull(store.record("website").session)
-    }
-
-    @Test fun `a handover not joined in time keeps the session, to hand it over on the next load`() = test {
-        store.update("website") { CrispNotificationRecord(enabled = true, session = registered) }
-
-        val isJoined = sync.handOver(CrispConfig("website", "user_b"), registered, bridge, 5.seconds)
-
-        assertFalse(isJoined)
-        assertTrue(calls.isEmpty())
-        assertEquals(registered, store.record("website").session)
-        assertEquals(registered, sync.handoverFrom(CrispConfig("website", "user_b")))
     }
 
     @Test fun `the token is unregistered from the page joined before replacing it, so that no handover is needed`() = test {
