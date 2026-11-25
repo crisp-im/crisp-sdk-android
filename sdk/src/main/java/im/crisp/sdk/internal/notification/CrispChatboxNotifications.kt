@@ -180,11 +180,13 @@ internal class CrispChatboxNotifications(
      * So the previous session never prevents loading [config][CrispConfig] once a session can be joined:
      * it is then forgotten, unregistered if joined, see [CrispNotificationSync.handOver].
      *
-     * If its page cannot be loaded, the previous session is forgotten as unreachable,
+     * If its page cannot be loaded (e.g. the WebView unsupported), [onFailed] fails the load with that error,
+     * keeping the previous session too: the error does not depend on the session,
+     * so [config][CrispConfig] could not be loaded either.
+     * If the handover fails unexpectedly, the previous session is forgotten as unreachable,
      * see [CrispNotificationSync.dropHandover]. Not if replaced meanwhile: the next page hands it over again.
      *
-     * Returns `false` if not needed, or if it cannot be made
-     * (e.g. without a bridge or if the page cannot be loaded),
+     * Returns `false` if not needed, or if it cannot be made (e.g. without a bridge),
      * so [config][CrispConfig] is loaded right away.
      * Otherwise, [onFinished] or [onFailed] is called once handed over, unless the page is replaced meanwhile.
      */
@@ -222,10 +224,12 @@ internal class CrispChatboxNotifications(
         try {
             load(handover)
         } catch (e: CrispClientException) {
+            // Not specific to the previous session (WebView, assets), so the chatbox could not load either:
+            // kept to hand it over on the next load
             log(Level.WARN, LOG_TAG, "Cannot load the previous session to unregister its notifications", e)
             store.isHandingOver = false
-            sync.dropHandover(config, previous)
-            return false
+            onFailed(e)
+            return true
         }
         handoverJob = scope.launch {
             // `null` once failed unexpectedly, the previous session being forgotten

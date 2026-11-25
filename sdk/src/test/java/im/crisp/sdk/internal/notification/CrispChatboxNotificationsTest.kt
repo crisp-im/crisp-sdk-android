@@ -358,7 +358,7 @@ class CrispChatboxNotificationsTest {
         assertEquals(1, finished)
     }
 
-    @Test fun `the previous session is forgotten if its page cannot be loaded`() = runTest {
+    @Test fun `the load fails and the previous session is kept if its page cannot be loaded`() = runTest {
         store.update("website") { CrispNotificationRecord(enabled = true, session = previous) }
 
         val isHandingOver = notifications().handOverIfNeeded(
@@ -369,8 +369,11 @@ class CrispChatboxNotificationsTest {
             onFailed = { failures += it },
         )
 
-        assertFalse(isHandingOver)
-        assertNull(store.record("website").session)
+        assertTrue(isHandingOver)
+        assertTrue(failures.single() is CrispClientException.WebViewUnavailable)
+        assertEquals(0, finished)
+        assertFalse(chatboxStore.isHandingOver)
+        assertEquals(previous, store.record("website").session)
     }
 
     // endregion

@@ -139,6 +139,10 @@ internal class CrispChatboxStore(
      * The page is ready (its [ready][im.crisp.sdk.internal.bridge.InterfaceLifecycleEvent.State.READY]
      * interface lifecycle event), or the page prepared by [holdNextReady] can become ready.
      * Then emits [CrispClientEvent.Loaded] once its session is known, see [onSessionLoaded].
+     *
+     * Never ready while [isHandingOver], whose page is not of the chatbox session.
+     * The Web client is ready again once it resets its session in the page (e.g. purged by an operator during a handover),
+     * after the hold of the page was used, until replaced by the page of the chatbox session.
      */
     internal fun onPageFinished() {
         onPageReady?.let {
@@ -146,6 +150,7 @@ internal class CrispChatboxStore(
             it()
             return
         }
+        if (isHandingOver) return
         _state.value = CrispChatboxState.Ready
         emitLoadedIfNeeded()
     }

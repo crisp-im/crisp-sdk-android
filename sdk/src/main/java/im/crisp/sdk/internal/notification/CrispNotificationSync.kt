@@ -312,7 +312,7 @@ internal class CrispNotificationSync(
     }
 
     /**
-     * Forgets [previous][CrispNotificationSession] once its handover failed (e.g. its page cannot be loaded),
+     * Forgets [previous][CrispNotificationSession] once its handover failed unexpectedly,
      * as unreachable.
      * Its notifications are no longer shown, but its `notificationId` is left on it.
      * @see [CrispNotificationPolicy.onSessionLoaded].
