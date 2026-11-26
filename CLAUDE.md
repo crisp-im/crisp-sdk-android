@@ -4,6 +4,7 @@ Android SDK that wraps the Crisp chatbox Web widget in a WebView.
 
 - Language: Kotlin
 - Supported Android versions: latest down to Android 7 (minSdk 24). Check API availability before using newer APIs.
+- React Native compatibility: the Crisp React Native SDK supports React Native 0.85+ (Expo 56+), built with compileSdk 36, AGP 8.12 and Kotlin 2.1.20. So `sdk` compiles with compileSdk 36 and Kotlin language/API 2.1, and its dependencies must not need more (AAR metadata `minCompileSdk` <= 36, `minAndroidGradlePluginVersion` <= 8.12, compiled with Kotlin 2.2 at most). Check it before bumping any dependency of `sdk`, details in `gradle/libs.versions.toml`. Build tools (AGP, Kotlin plugin, Dokka) and `app` are not concerned.
 - Supported WebView versions: requires Android System WebView 118 or later, driven by the `crisp-client`. It does not depend on the Android version, as devices get WebView updates separately. The minimum is `CrispClient.minWebViewMajor`, generated into `client` module by `write_crisp_client_android` in `.mise/lib/web-client.sh`: revisit it on each `crisp-client` bump. `CrispWebViewSupport` (`internal/webview`) checks it before loading and the chatbox shows an error with an "Update WebView" action when it is not met.
 
 ## Modules
