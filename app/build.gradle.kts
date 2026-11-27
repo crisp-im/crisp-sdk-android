@@ -47,7 +47,7 @@ dependencies {
     // Develop
     implementation(project(":sdk"))
     // Release testing
-    /*implementation("im.crisp:crisp-sdk:3.0.0beta2") {
+    /*implementation("im.crisp:crisp-sdk:3.0.0beta3") {
         isChanging = true
     }*/
     // Notifications

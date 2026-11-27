@@ -1,4 +1,5 @@
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jreleaser.model.Active
 import org.jreleaser.model.Http
 import org.jreleaser.model.api.deploy.maven.MavenCentralMavenDeployer
@@ -25,8 +26,9 @@ version = sdkVersion
 
 android {
     namespace = "im.crisp.sdk"
+    // 36 at most, for React Native 0.85+ (see the React Native compatibility in gradle/libs.versions.toml)
     compileSdk {
-        version = release(37)
+        version = release(36)
     }
 
     defaultConfig {
@@ -53,7 +55,7 @@ android {
     }
     testOptions {
         // The instrumented tests (e.g. tapping notifications) run as the app does
-        targetSdk = 37
+        targetSdk = 36
         // Android methods (e.g. android.util.Log) return default values instead of throwing
         unitTests.isReturnDefaultValues = true
         // Robolectric tests (e.g. notifications) read the SDK resources
@@ -69,6 +71,14 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        // React Native 0.85 builds with Kotlin 2.1.20: writes 2.1 metadata and only uses the 2.1 stdlib API
+        languageVersion = KotlinVersion.KOTLIN_2_1
+        apiVersion = KotlinVersion.KOTLIN_2_1
+    }
+}
+
 dependencies {
     // TODO: maybe split SDK artifacts between w or w/o compose
     implementation(libs.androidx.appcompat)
@@ -78,7 +88,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.process)
-    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.window)
     implementation(libs.kotlinx.coroutines.android)
@@ -87,7 +97,7 @@ dependencies {
     // Notifications, only if the app adds Firebase Cloud Messaging: not to force it on apps without notifications.
     // Never referenced outside CrispFirebase and CrispNotificationService, checked to be available at runtime
     compileOnly(libs.firebase.messaging)
-    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit)

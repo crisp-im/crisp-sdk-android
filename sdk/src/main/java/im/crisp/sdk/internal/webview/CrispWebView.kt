@@ -39,6 +39,9 @@ internal class CrispWebView @JvmOverloads constructor(
     companion object {
         private const val LOG_TAG = "CrispWebView"
 
+        // How long a page ready may wait to be drawn, see runWhenDrawn
+        private const val VISUAL_STATE_TIMEOUT_MS = 1_000L
+
         // region Startup
 
         private const val START_UP_THREAD_NAME = "CrispWebViewStartUp"
@@ -170,7 +173,7 @@ internal class CrispWebView @JvmOverloads constructor(
                 }
             }
             clientBridge = CrispClientBridge(bridge.evaluator, bridge.events).also {
-                it.bindTo(store)
+                it.bindTo(store, whenDrawn = ::runWhenDrawn)
             }
         }
     }
@@ -245,6 +248,46 @@ internal class CrispWebView @JvmOverloads constructor(
             "})();",
             null
         )
+    }
+
+    /** The id of the next visual state callback, see [runWhenDrawn] */
+    private var nextVisualStateRequestId = 0L
+
+    /**
+     * Runs [action] once the current page is drawn,
+     * e.g. to hide the loading view once the page is ready, or never if another page starts meanwhile.
+     *
+     * Until the page draws its first frame, the WebView keeps showing the last frame of the previous one,
+     * e.g. the previous session when reloading once reset, which would be seen while the loading view fades out.
+     *
+     * Not waited for more than [VISUAL_STATE_TIMEOUT_MS], as the WebView is only drawn while shown,
+     * e.g. not while the host is stopped, nor detached or hidden.
+     */
+    internal fun runWhenDrawn(action: () -> Unit) {
+        val pageId = webViewBridge?.pageId ?: return
+        var hasRun = false
+        val runOnce = {
+            if (!hasRun && webViewBridge?.pageId == pageId) {
+                hasRun = true
+                action()
+            }
+        }
+        if (!isAttachedToWindow || !isShown) {
+            runOnce()
+            return
+        }
+        postVisualStateCallback(
+            nextVisualStateRequestId++,
+            object : VisualStateCallback() {
+                override fun onComplete(requestId: Long) = runOnce()
+            }
+        )
+        postDelayed({
+            if (!hasRun && webViewBridge?.pageId == pageId) {
+                log(Level.DEBUG, LOG_TAG, "Page not drawn within ${VISUAL_STATE_TIMEOUT_MS}ms, ready anyway")
+            }
+            runOnce()
+        }, VISUAL_STATE_TIMEOUT_MS)
     }
 
     fun clear() {

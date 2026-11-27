@@ -34,7 +34,8 @@ internal class WebViewBridge(
      * The page whose events are dispatched, see [startPage]: `null` while none is loaded.
      * Main-thread only.
      */
-    private var pageId: String? = null
+    var pageId: String? = null
+        private set
 
     /**
      * A page is loading: only its events are dispatched from now on,

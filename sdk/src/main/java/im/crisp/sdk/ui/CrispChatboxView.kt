@@ -54,12 +54,15 @@ import im.crisp.sdk.internal.views.CrispSheetDragListener
 import im.crisp.sdk.internal.views.showCopyMenu
 import im.crisp.sdk.internal.webview.CrispClientException
 import im.crisp.sdk.internal.webview.CrispWebView
+import im.crisp.sdk.internal.webview.CrispWebViewCookies
 import im.crisp.sdk.internal.webview.CrispWebViewSupport
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -234,7 +237,12 @@ class CrispChatboxView @JvmOverloads constructor(
     private var observedLifecycle: Lifecycle? = null
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
-            Lifecycle.Event.ON_START, Lifecycle.Event.ON_STOP -> updateChatOpened()
+            Lifecycle.Event.ON_START -> updateChatOpened()
+            Lifecycle.Event.ON_STOP -> {
+                updateChatOpened()
+                // The app may be killed once stopped (e.g. swiped from recents), see CrispWebViewCookies
+                if (webView != null) CrispWebViewCookies.flush()
+            }
             // E.g. back from the system settings or a permission request of the app
             Lifecycle.Event.ON_RESUME -> notifications.checkAllowed()
             Lifecycle.Event.ON_DESTROY -> onDestroy()
@@ -261,17 +269,21 @@ class CrispChatboxView @JvmOverloads constructor(
             permissionManager.registerLaunchers(activity)
         }
         observeLifecycle()
+        viewTreeObserver.addOnGlobalLayoutListener(insetsLayoutListener)
         updateChatOpened()
         webView?.clientBridge?.let(::attachController)
         // Loads once started, if needed
         startStateEventCollection()
         startSocketLifecycle()
+        startSessionSaving()
     }
 
     /** @suppress */
     override fun onDetachedFromWindow() {
         // Still attached until super is called
         updateChatOpened(isAttached = false)
+        viewTreeObserver.removeOnGlobalLayoutListener(insetsLayoutListener)
+        insetsHorizontalDistances = null
         webView?.clientBridge?.let(controller::detach)
         // The loading timeout is canceled below, so reload when attached again
         if (store.state.value is CrispChatboxState.Loading) {
@@ -283,6 +295,7 @@ class CrispChatboxView @JvmOverloads constructor(
         permissionManager.dismiss()
         cancelStateEventCollection()
         cancelSocketLifecycle()
+        cancelSessionSaving()
         cancelLoadingTimeout()
         // Scheduled again once attached, as still needing to load
         cancelWebViewCreation()
@@ -381,6 +394,35 @@ class CrispChatboxView @JvmOverloads constructor(
             }
         }
 
+    // The distances to the window sides the side insets were last applied with, null if not laid out then
+    private var insetsHorizontalDistances: Pair<Int, Int>? = null
+
+    // Applies the side insets again once this view moves horizontally in its window (e.g. laid out after the insets
+    // were dispatched, or a parent resized), as Views are not dispatched insets again then (unlike in Compose)
+    private val insetsLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+        if (horizontalDistancesToWindow() != insetsHorizontalDistances) {
+            ViewCompat.requestApplyInsets(this)
+        }
+    }
+
+    /**
+     * The distances from this view to the left and right sides of its window, or null if not laid out yet.
+     *
+     * From the layout positions, without transformations (e.g. the translation of a sliding transition),
+     * so that the padding fits where this view settles.
+     */
+    private fun horizontalDistancesToWindow(): Pair<Int, Int>? {
+        val root = rootView
+        if (!isLaidOut || !root.isLaidOut) return null
+        var leftInWindow = left
+        var parentView = parent as? View
+        while (parentView != null) {
+            leftInWindow += parentView.left - parentView.scrollX
+            parentView = parentView.parent as? View
+        }
+        return leftInWindow.coerceAtLeast(0) to (root.width - leftInWindow - width).coerceAtLeast(0)
+    }
+
     /** Draws both edges of this chatbox behind the system bars, see [EdgeToEdge.ALL]. */
     fun enableEdgeToEdge() {
         edgeToEdge = EdgeToEdge.ALL
@@ -424,6 +466,21 @@ class CrispChatboxView @JvmOverloads constructor(
         // Distance between the bottom of CrispChatboxView and the bottom of the screen
         // (e.g. if bottomNav is 80px high, distanceToScreenBottom is 80px)
         val distanceToScreenBottom = (screenHeight - viewBottomOnScreen).coerceAtLeast(0)
+        // Same on the sides: only pad by the amount the system bars and the display cutout overlap THIS view,
+        // not when a parent already keeps it away from them (e.g. the sheet, centered and limited in width, in landscape).
+        // From the window, as the dispatched insets may or may not be relative to this view already: Compose insets
+        // them to the position of its AndroidView, but not the display cutout before Android 11.
+        // In the window, as the insets: a window may not start at the screen left (e.g. a dialog beside the navigation bar)
+        val windowSystemInsets = ViewCompat.getRootWindowInsets(this)?.getInsets(
+            WindowInsetsCompat.Type.statusBars() or
+                    WindowInsetsCompat.Type.navigationBars() or
+                    WindowInsetsCompat.Type.displayCutout()
+        ) ?: systemInsets
+        // Fully padded until laid out, then dispatched again (see insetsLayoutListener)
+        val horizontalDistances = horizontalDistancesToWindow()
+        insetsHorizontalDistances = horizontalDistances
+        val leftInsets = (windowSystemInsets.left - (horizontalDistances?.first ?: 0)).coerceAtLeast(0)
+        val rightInsets = (windowSystemInsets.right - (horizontalDistances?.second ?: 0)).coerceAtLeast(0)
 
         // 2. Only pad by the amount the IME overlaps THIS view:
         val bottomInsets = if (imeInsets.bottom > 0) {
@@ -436,9 +493,9 @@ class CrispChatboxView @JvmOverloads constructor(
         }
 
         setPadding(
-            systemInsets.left,
+            leftInsets,
             0,
-            systemInsets.right,
+            rightInsets,
             bottomInsets
         )
 
@@ -1042,6 +1099,32 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun cancelSocketLifecycle() {
         socketJob?.cancel()
         socketJob = null
+    }
+
+    private var sessionSavingJob: Job? = null
+
+    /**
+     * Writes the cookies to disk each time the page joins another session (e.g. once reset, or the first one),
+     * so that the next start of the app restores it, not the previous one, see [CrispWebViewCookies].
+     *
+     * The Web client saves the session it joins when its socket connects, in the same `connect`
+     * dispatch as the log telling it is connected, so before it reaches [store].
+     * Not again when the same session is joined again (socket reconnected or page reloaded).
+     */
+    private fun startSessionSaving() {
+        val lifecycle = observedLifecycle ?: return
+        sessionSavingJob = lifecycle.coroutineScope.launch {
+            store.sessionId
+                .combine(store.isSocketConnected) { sessionId, isConnected -> sessionId?.takeIf { isConnected } }
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { CrispWebViewCookies.flush() }
+        }
+    }
+
+    private fun cancelSessionSaving() {
+        sessionSavingJob?.cancel()
+        sessionSavingJob = null
     }
 
     /**
