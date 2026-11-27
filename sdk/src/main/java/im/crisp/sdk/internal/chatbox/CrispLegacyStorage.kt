@@ -50,7 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class CrispLegacyStorage(
     private val cacheDir: File,
     private val filesDir: File,
-    // Writes the cookies of the WebView to disk, see removeSaved
+    // Writes the cookies of the WebView to disk, see removeSaved. Blocking, unlike CrispWebViewCookies.flush,
+    // which returns before they are written: the file must only be removed once they are
     private val flushCookies: () -> Unit = {},
     // Deletes the SharedPreferences of the given name, returning whether none is left
     private val deletePreferences: (name: String) -> Boolean = { true },

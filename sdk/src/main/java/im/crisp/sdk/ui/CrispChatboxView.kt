@@ -54,12 +54,15 @@ import im.crisp.sdk.internal.views.CrispSheetDragListener
 import im.crisp.sdk.internal.views.showCopyMenu
 import im.crisp.sdk.internal.webview.CrispClientException
 import im.crisp.sdk.internal.webview.CrispWebView
+import im.crisp.sdk.internal.webview.CrispWebViewCookies
 import im.crisp.sdk.internal.webview.CrispWebViewSupport
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -234,7 +237,12 @@ class CrispChatboxView @JvmOverloads constructor(
     private var observedLifecycle: Lifecycle? = null
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
-            Lifecycle.Event.ON_START, Lifecycle.Event.ON_STOP -> updateChatOpened()
+            Lifecycle.Event.ON_START -> updateChatOpened()
+            Lifecycle.Event.ON_STOP -> {
+                updateChatOpened()
+                // The app may be killed once stopped (e.g. swiped from recents), see CrispWebViewCookies
+                if (webView != null) CrispWebViewCookies.flush()
+            }
             // E.g. back from the system settings or a permission request of the app
             Lifecycle.Event.ON_RESUME -> notifications.checkAllowed()
             Lifecycle.Event.ON_DESTROY -> onDestroy()
@@ -267,6 +275,7 @@ class CrispChatboxView @JvmOverloads constructor(
         // Loads once started, if needed
         startStateEventCollection()
         startSocketLifecycle()
+        startSessionSaving()
     }
 
     /** @suppress */
@@ -286,6 +295,7 @@ class CrispChatboxView @JvmOverloads constructor(
         permissionManager.dismiss()
         cancelStateEventCollection()
         cancelSocketLifecycle()
+        cancelSessionSaving()
         cancelLoadingTimeout()
         // Scheduled again once attached, as still needing to load
         cancelWebViewCreation()
@@ -1089,6 +1099,32 @@ class CrispChatboxView @JvmOverloads constructor(
     private fun cancelSocketLifecycle() {
         socketJob?.cancel()
         socketJob = null
+    }
+
+    private var sessionSavingJob: Job? = null
+
+    /**
+     * Writes the cookies to disk each time the page joins another session (e.g. once reset, or the first one),
+     * so that the next start of the app restores it, not the previous one, see [CrispWebViewCookies].
+     *
+     * The Web client saves the session it joins when its socket connects, in the same `connect`
+     * dispatch as the log telling it is connected, so before it reaches [store].
+     * Not again when the same session is joined again (socket reconnected or page reloaded).
+     */
+    private fun startSessionSaving() {
+        val lifecycle = observedLifecycle ?: return
+        sessionSavingJob = lifecycle.coroutineScope.launch {
+            store.sessionId
+                .combine(store.isSocketConnected) { sessionId, isConnected -> sessionId?.takeIf { isConnected } }
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { CrispWebViewCookies.flush() }
+        }
+    }
+
+    private fun cancelSessionSaving() {
+        sessionSavingJob?.cancel()
+        sessionSavingJob = null
     }
 
     /**
