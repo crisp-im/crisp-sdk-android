@@ -97,7 +97,11 @@ class CrispChatboxViewNotificationsTest {
         idle()
     }
 
-    private fun ready() = send("onInterfaceLifecycle", """{"state":"ready"}""")
+    /** The page is ready, then drawn: Robolectric never draws, so once [CrispWebView.runWhenDrawn] stops waiting. */
+    private fun ready() {
+        send("onInterfaceLifecycle", """{"state":"ready"}""")
+        idleFor(Duration.ofSeconds(1))
+    }
 
     private fun joined(sessionId: String) {
         send("onLog", """{"level":"info","ns":"Crisp","value":"Socket state has been changed to connected: true"}""")

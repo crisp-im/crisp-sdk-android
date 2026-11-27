@@ -26,8 +26,15 @@ private val SOCKET_STATE_LOG = Regex("""^Socket state has been changed to connec
 internal fun parseSocketStateLog(value: String): Boolean? =
     SOCKET_STATE_LOG.find(value)?.groupValues?.get(1)?.toBooleanStrict()
 
-/** Forwards the events sent by the Web client to the chatbox [store][CrispChatboxStore]. */
-internal fun CrispClientBridge.bindTo(store: CrispChatboxStore) {
+/**
+ * Forwards the events sent by the Web client to the chatbox [store][CrispChatboxStore].
+ *
+ * The page becomes ready once [whenDrawn] runs its action, e.g. once drawn, see [CrispWebView.runWhenDrawn].
+ */
+internal fun CrispClientBridge.bindTo(
+    store: CrispChatboxStore,
+    whenDrawn: (action: () -> Unit) -> Unit = { it() },
+) {
     events.onError { channel, error ->
         log(Level.WARN, LOG_TAG, "Cannot handle '$channel' event: ${error.message}")
     }
@@ -48,7 +55,7 @@ internal fun CrispClientBridge.bindTo(store: CrispChatboxStore) {
 
     onInterfaceLifecycle {
         if (it.state == InterfaceLifecycleEvent.State.READY) {
-            store.onPageFinished()
+            whenDrawn(store::onPageFinished)
         }
     }
 
